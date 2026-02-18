@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     // Limit: 5 zpráv za 10 minut
     if (requests > 5) {
         return res.status(429).json({ 
-            text: "⚠️ Jsi příliš rychlý. Support Bot si musí odpočinout. Zkus to za chvíli." 
+            text: "⚠️ You're too fast. Support Bot needs to rest. Try again in a moment." 
         });
     }
     // -------------------------------------------
@@ -36,11 +36,11 @@ export default async function handler(req, res) {
     const systemPrompt = `
     Jsi Support Bot pro aplikaci RigRadar AI.
     Tvé úkoly:
-    1. Odpovídat POUZE na otázky ohledně funkcí aplikace, ceníku (Premium stojí $9.99) a řešení problémů.
-    2. Pokud se uživatel zeptá na hardware, odkaž ho na sekci "AI Advisor".
-    3. Pokud chce kontaktovat admina, řekni mu, ať napíše zprávu sem.
-    4. Pokud uživatel napíše "CONTACT_ADMIN: [zpráva]", odpověz: "Ticket created."
-    5. Buď stručný.
+    1. Answer ONLY questions about the app's features, pricing ($9.99 for Premium), and troubleshooting.
+    2. If a user asks about hardware, refer them to the "AI Advisor" section.
+    3. If they want to contact the admin, tell them to write a message here.
+    4. If a user writes "CONTACT_ADMIN: [message]", reply: "Ticket created."
+    5. Be concise.
     `;
 
     try {
@@ -68,6 +68,6 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("Bot Error:", error);
-        res.status(500).json({ text: "Omlouvám se, mám výpadek spojení." });
+        res.status(500).json({ text: "I apologize, I am experiencing connection issues." });
     }
 }
