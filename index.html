@@ -227,26 +227,41 @@
         // --- NOTIFICATIONS & CHART LOGIC ---
         let lastNotifiedId = null;
 
-        if ("Notification" in window) {
+
+function checkNotifications(deal) {
+    const userEmail = localStorage.getItem('rr_user_email');
+    
+    // Zkontrolujeme, zda je deal nový, patří nám, a ještě jsme ho neukázali
+    if (deal && deal.id !== lastNotifiedId && deal.ownerEmail === userEmail) {
+        lastNotifiedId = deal.id;
+        
+        // Zvukový efekt (volitelné, dodá "premium" feel)
+        // const audio = new Audio('/notification.mp3'); audio.play().catch(e=>{});
+
+        if (Notification.permission === "granted") {
+            const notif = new Notification(`RigRadar: Found ${deal.title}`, {
+                body: `Price: ${deal.price} | Store: ${deal.store}\nClick to view details.`,
+                icon: 'logo.png',
+                tag: deal.id // Zabrání duplicitám na úrovni systému
+            });
+
+            // Po kliknutí otevře detail produktu na webu
+            notif.onclick = function() {
+                window.focus();
+                const dealDataEscaped = encodeURIComponent(JSON.stringify(deal));
+                openDetail(dealDataEscaped);
+                this.close();
+            };
+        } else if (Notification.permission !== "denied") {
+            // Pokud ještě nerozhodl, zkusíme si vyžádat povolení
             Notification.requestPermission();
         }
-
-        function checkNotifications(latestDeal) {
-            const userEmail = localStorage.getItem('rr_user_email');
-            
-            if (latestDeal && latestDeal.id !== lastNotifiedId && latestDeal.ownerEmail === userEmail) {
-                lastNotifiedId = latestDeal.id;
-                
-                if (Notification.permission === "granted") {
-                    new Notification(`RigRadar: ${latestDeal.title}`, {
-                        body: `New find! Price: ${latestDeal.price}`,
-                        icon: 'logo.png'
-                    });
-                }
-                const badge = document.getElementById('notif-badge');
-                if(badge) badge.classList.remove('hidden');
-            }
-        }
+        
+        // Zobrazíme i červený puntík na zvonečku (pokud ho máš v UI)
+        const badge = document.getElementById('notif-badge');
+        if(badge) badge.classList.remove('hidden');
+    }
+}
 
         // --- MODAL LOGIC ---
         function openDetail(dealDataEscaped) {
@@ -349,7 +364,19 @@ async function fetchLatestDeal() {
                 const res = await fetch(`/api/update_price${userEmail ? '?user='+userEmail : ''}`);
                 const data = await res.json();
                 
-                if (data.latest) checkNotifications(data.latest);
+                // Vlož do fetchLatestDeal v index.html místo řádku s checkNotifications
+
+// 1. Najdeme nejnovější deal z celé historie (veřejné i tvojí)
+if (data.history && data.history.length > 0) {
+    // Seřadíme pro jistotu, i když by mělo být seřazeno
+    const latestFromHistory = data.history[0]; 
+    
+    // Zkontrolujeme notifikaci pro tento deal
+    checkNotifications(latestFromHistory);
+} else if (data.latest) {
+    // Fallback pro autopilota
+    checkNotifications(data.latest);
+}
 
                 // --- HLAVNÍ KARTA (Zůstává stejná) ---
                 if (data.latest) {
@@ -518,6 +545,9 @@ async function saveScanFromIndex(event, dealDataEscaped, btn) {
         }
 
         async function requestScan() {
+            if ("Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
             const query = document.getElementById('scanQuery').value;
             const customStore = document.getElementById('custom-store').value.trim();
             const statusEl = document.getElementById('scanStatus');
@@ -557,7 +587,6 @@ async function saveScanFromIndex(event, dealDataEscaped, btn) {
             await loadLayout(); 
             initChart();
             await fetchLatestDeal();
-            loadComponents();
             setInterval(fetchLatestDeal, 5000); 
         });
     </script>
