@@ -552,8 +552,7 @@ async function saveScanFromIndex(event, dealDataEscaped, btn) {
             const customStore = document.getElementById('custom-store').value.trim();
             const statusEl = document.getElementById('scanStatus');
             const btn = document.getElementById('scan-btn');
-            const userEmail = localStorage.getItem('rr_user_email');
-
+            const userEmail = localStorage.getItem('rr_user_email'); 
             if(!query) { statusEl.innerText = "⚠️ Enter product name"; return; }
             
             statusEl.innerText = "📡 Sending to satellite...";
@@ -572,8 +571,7 @@ async function saveScanFromIndex(event, dealDataEscaped, btn) {
                     body: JSON.stringify({ 
                         query: query, 
                         stores: stores,
-                        ownerEmail: userEmail 
-                    })
+                        ownerEmail: userEmail || 'system' 
                 });
                 statusEl.innerText = `✅ Request for ${stores[0]} received!`;
                 statusEl.className = "text-center text-xs font-mono h-5 text-green-500";
