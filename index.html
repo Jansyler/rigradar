@@ -533,14 +533,25 @@ async function saveScanFromIndex(event, dealDataEscaped, btn) {
                     body: JSON.stringify({ deal }) // 3. ZMĚNA: Neposíláme email
                 });
                 
-                if(!res.ok) {
-                    // Pokud se to nepovede (např. vypršel token), vrátíme tlačítko zpět
+if(!res.ok) {
+                    // Pokud se to nepovede, vrátíme tlačítko do původního stavu
                     btn.innerHTML = originalContent;
                     btn.classList.remove("text-green-500", "border-green-500/50");
-                    if (res.status === 401) alert("Session expired. Please log in again.");
+
+                    // Místo alertu vypíšeme chybu do statusu pod vyhledáváním
+                    const statusEl = document.getElementById('scanStatus');
+                    if (statusEl) {
+                        statusEl.innerText = res.status === 401 ? "⚠️ Session expired. Log in again." : "❌ Save failed.";
+                        statusEl.className = "text-center text-xs font-mono h-5 text-red-500";
+                        setTimeout(() => { statusEl.innerText = ""; }, 3000);
+                    }
                 } else {
-                    // Úspěch - zobrazíme toast (pokud existuje funkce showToast)
-                    if(typeof showToast === 'function') showToast("Saved to Archive!", "success");
+                    // Úspěch - už žádný alert ani showToast, pokud ho nemáš definovaný
+                    // Tlačítko už svítí zeleně z předchozího kroku, tak ho tak necháme chvíli
+                    setTimeout(() => {
+                        btn.innerHTML = originalContent;
+                        btn.classList.remove("text-green-500", "border-green-500/50");
+                    }, 2000);
                 }
             } catch (e) {
                 console.error(e);
