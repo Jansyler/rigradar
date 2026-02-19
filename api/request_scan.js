@@ -8,42 +8,39 @@ const redis = new Redis({
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Frontend posílá { query: "RTX 4070", stores: ["Alza", "ebay"] }
-  const { query, stores } = req.body;
+  const { query, stores, ownerEmail } = req.body;
   
   if (!query) return res.status(400).json({ error: 'Query is required' });
 
-  // 1. Rate Limiting (Ochrana proti spamu)
+  // 1. Rate Limiting (Ochrana proti spamu - 2 requesty za 15s)
   const ip = req.headers['x-forwarded-for'] || 'unknown_ip';
   const rateLimitKey = `rate_limit:${ip}`;
 
-  const requests = await redis.incr(rateLimitKey);
-  if (requests === 1) {
-      await redis.expire(rateLimitKey, 15);
-  }
+  try {
+    const requests = await redis.incr(rateLimitKey);
+    if (requests === 1) {
+        await redis.expire(rateLimitKey, 15);
+    }
+    if (requests > 2) {
+        return res.status(429).json({ error: 'Wait 15s before next scan!' });
+    }
 
-  if (requests > 2) { // Povolíme 2 requesty za 15s (pro jistotu)
-      return res.status(429).json({ error: 'Wait 15s before next scan!' });
-  }
-
-try {
-    const { query, stores, ownerEmail } = req.body; // Přijmeme ownerEmail
-
-    // Příprava dat pro Redis frontu (scan_queue)
+    // 2. Příprava dat pro Python (radar.py)
     const task = JSON.stringify({
       query: query,
       stores: stores && stores.length > 0 ? stores : ['ebay'],
-      ownerEmail: ownerEmail || 'system', // Předáme email do Pythonu
+      ownerEmail: ownerEmail || 'system',
       timestamp: Date.now(),
       priority: true,
       source: 'user_request'
     });
 
-    // 3. Odeslání do fronty
-    await redis.rpush('scan_queue', payload);
+    // 3. Odeslání do fronty (OPRAVENO: používáme task, ne payload)
+    await redis.rpush('scan_queue', task);
 
     return res.status(200).json({ success: true, message: 'Scan queued' });
   } catch (error) {
+    console.error("Redis Error:", error);
     return res.status(500).json({ error: error.message });
   }
 }
