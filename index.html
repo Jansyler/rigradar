@@ -248,7 +248,7 @@ function checkNotifications(deal) {
             // Po kliknutí otevře detail produktu na webu
             notif.onclick = function() {
                 window.focus();
-                const dealDataEscaped = encodeURIComponent(JSON.stringify(deal));
+                const dealDataEscaped = encodeURIComponent(JSON.stringify(deal)).replace(/'/g, "%27"); 
                 openDetail(dealDataEscaped);
                 this.close();
             };
