@@ -148,7 +148,10 @@
                     <div class="h-2 bg-black/40 rounded-full overflow-hidden border border-white/5"><div id="modal-score-bar" class="h-full bg-blue-600 transition-all duration-1000" style="width: 0%"></div></div>
                     <div class="pt-4 border-t border-white/5"><div class="text-[10px] uppercase font-bold text-blue-400 mb-2 font-mono">Full AI Analysis</div><p id="modal-opinion" class="text-gray-300 italic leading-relaxed">---</p></div>
                 </div>
-                <div class="mt-8 flex gap-3"><a id="modal-link" href="#" target="_blank" class="flex-grow bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl text-center uppercase text-sm tracking-wider">GO TO STORE ↗</a></div>
+                <div class="mt-8 flex gap-3">
+                    <button id="modal-share" onclick="shareDeal()" class="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-500/30 text-gray-300 hover:text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all">
+                        <span class="text-lg">🔗</span>
+                    </button><a id="modal-link" href="#" target="_blank" class="flex-grow bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl text-center uppercase text-sm tracking-wider">GO TO STORE ↗</a></div>
             </div>
         </div>
 
@@ -689,6 +692,32 @@ function checkNotifications(deal) {
             modalContent.classList.remove('scale-100');
             modalContent.classList.add('scale-95');
             setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+    // --- SHARE LOGIC ---
+        function shareDeal() {
+            const title = document.getElementById('modal-title').innerText;
+            const price = document.getElementById('modal-price').innerText;
+            const store = document.getElementById('modal-badge').innerText;
+            
+            // Vygenerujeme hezký text pro sdílení
+            const shareText = `🔥 Crazy deal on RigRadar!\n\n${title}\n💰 ${price} at ${store}\n\nScanner: https://rigradarai.com`;
+            
+            // Pokusíme se zkopírovat do schránky
+            navigator.clipboard.writeText(shareText).then(() => {
+                const shareBtn = document.getElementById('modal-share');
+                const originalHtml = shareBtn.innerHTML;
+                
+                // Animace potvrzení
+                shareBtn.innerHTML = `<span class="text-green-400 font-bold text-sm">COPIED!</span>`;
+                shareBtn.classList.add('border-green-500/50', 'bg-green-500/10');
+                
+                setTimeout(() => {
+                    shareBtn.innerHTML = originalHtml;
+                    shareBtn.classList.remove('border-green-500/50', 'bg-green-500/10');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
         }
     </script>
 </body>
