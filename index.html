@@ -50,7 +50,7 @@
     </style>
 </head>
 <body class="flex flex-col min-h-screen overflow-x-hidden">
-
+<div id="notification-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-3 pointer-events-none"></div>
     <div id="header-placeholder"></div>
 
     <main class="flex-grow flex flex-col items-center justify-start px-4 pt-32 pb-20 w-full max-w-4xl mx-auto space-y-12">
@@ -228,44 +228,46 @@
         let lastNotifiedId = null;
 
 
-function checkNotifications(deal) {
-    const userEmail = localStorage.getItem('rr_user_email');
-    
-    // Zkontrolujeme, zda je deal nový, patří nám, a ještě jsme ho neukázali
-    if (deal && deal.id !== lastNotifiedId && deal.ownerEmail === userEmail) {
-        lastNotifiedId = deal.id;
-        
-        // Zvukový efekt (volitelné, dodá "premium" feel)
-        // const audio = new Audio('/notification.mp3'); audio.play().catch(e=>{});
-function showRigNotification(title, price, link) {
+function showRigNotification(title, price, link, deal) {
     const container = document.getElementById('notification-container');
     const id = Date.now();
     
     const notification = document.createElement('div');
-    notification.className = "bg-black/80 border border-blue-500/50 backdrop-blur-md p-4 rounded-lg shadow-2xl transform translate-x-full transition-all duration-500 ease-out cursor-pointer hover:border-blue-400 min-w-[250px]";
+    // pointer-events-auto umožní na notifikaci kliknout, i když kontejner je "průchozí"
+    notification.className = "glass-panel pointer-events-auto p-4 rounded-2xl shadow-2xl transform translate-x-full transition-all duration-500 ease-out cursor-pointer hover:border-blue-500/50 min-w-[280px] border border-white/5";
     notification.id = `notif-${id}`;
+    notification.style.background = "rgba(10, 10, 10, 0.9)";
+    
     notification.innerHTML = `
-        <div class="flex items-center gap-3">
-            <div class="text-blue-500 text-xl">📡</div>
-            <div>
-                <p class="text-xs font-mono text-blue-400 uppercase tracking-widest">New Deal Found</p>
+        <div class="flex items-center gap-4">
+            <div class="bg-blue-600/20 p-2 rounded-lg text-blue-400">📡</div>
+            <div class="flex-grow">
+                <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Satellite Found Deal</p>
                 <p class="text-sm font-bold text-white truncate w-48">${title}</p>
-                <p class="text-lg font-mono text-green-400">${price}</p>
+                <p class="text-lg font-black text-green-400 mt-1">${price}</p>
             </div>
         </div>
     `;
 
-    notification.onclick = () => window.open(link, '_blank');
-    container.appendChild(notification);
+    // Po kliku otevře detail přímo na webu (využije tvoji stávající funkci openDetail)
+    notification.onclick = () => {
+        const dealDataEscaped = encodeURIComponent(JSON.stringify(deal))
+            .replace(/'/g, "%27")
+            .replace(/\(/g, "%28")
+            .replace(/\)/g, "%29");
+        openDetail(dealDataEscaped);
+        // Po kliku notifikaci hned schováme
+        notification.remove();
+    };
 
-    // Animace vyjetí
+    container.appendChild(notification);
     setTimeout(() => notification.classList.remove('translate-x-full'), 100);
 
-    // Auto-smazání po 5s
+    // Automatické zmizení po 6 sekundách
     setTimeout(() => {
         notification.classList.add('translate-x-[150%]');
         setTimeout(() => notification.remove(), 500);
-    }, 5000);
+    }, 6000);
 }
 // Místo staré notifikace zavolej tu svou novou:
 showRigNotification(deal.title, deal.price, deal.url);
