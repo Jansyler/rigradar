@@ -101,14 +101,32 @@
         </div>
 
         <div class="w-full space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div class="glass-panel p-1 rounded-2xl flex items-center shadow-lg shadow-blue-900/5 ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all">
-                    <span class="pl-4 text-gray-500">📦</span>
-                    <input type="text" id="scanQuery" placeholder="Product (e.g. RTX 4070)" class="flex-grow bg-transparent border-none text-white px-4 py-4 focus:outline-none placeholder-gray-600 text-base md:text-lg">
+<div class="flex flex-col gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="glass-panel p-1 rounded-2xl flex items-center shadow-lg shadow-blue-900/5 ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all">
+                        <span class="pl-4 text-gray-500">📦</span>
+                        <input type="text" id="scanQuery" placeholder="Product (e.g. RTX 4070)" class="flex-grow bg-transparent border-none text-white px-4 py-4 focus:outline-none placeholder-gray-600 text-base md:text-lg">
+                    </div>
+                    <div class="glass-panel p-1 rounded-2xl flex items-center shadow-lg shadow-blue-900/5 ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all">
+                        <span class="pl-4 text-gray-500">🏪</span>
+                        <input type="text" id="custom-store" placeholder="Store (e.g. Alza, Amazon)" class="flex-grow bg-transparent border-none text-white px-4 py-4 focus:outline-none placeholder-gray-600 text-base md:text-lg">
+                    </div>
                 </div>
-                <div class="glass-panel p-1 rounded-2xl flex items-center shadow-lg shadow-blue-900/5 ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all">
-                    <span class="pl-4 text-gray-500">🏪</span>
-                    <input type="text" id="custom-store" placeholder="Store (e.g. Alza, Amazon)" class="flex-grow bg-transparent border-none text-white px-4 py-4 focus:outline-none placeholder-gray-600 text-base md:text-lg">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="glass-panel p-1 rounded-xl flex items-center ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all">
+                        <span class="pl-4 text-gray-500">💰</span>
+                        <input type="number" id="max-price" placeholder="Max Price ($)" class="flex-grow bg-transparent border-none text-white px-3 py-3 focus:outline-none placeholder-gray-600 text-sm">
+                    </div>
+                    <div class="glass-panel p-1 rounded-xl flex items-center ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all relative">
+                        <span class="pl-4 text-gray-500">🏷️</span>
+                        <select id="condition" class="flex-grow bg-transparent border-none text-gray-400 px-3 py-3 focus:outline-none text-sm appearance-none cursor-pointer">
+                            <option value="any" class="bg-gray-900">Any Condition</option>
+                            <option value="new" class="bg-gray-900">New Only</option>
+                            <option value="used" class="bg-gray-900">Used Only</option>
+                        </select>
+                        <span class="absolute right-4 text-gray-600 pointer-events-none">▼</span>
+                    </div>
                 </div>
             </div>
             
@@ -642,6 +660,10 @@ function checkNotifications(deal) {
 async function requestScan() {
             const query = document.getElementById('scanQuery').value;
             const customStore = document.getElementById('custom-store').value.trim();
+            // PŘIDÁNO: Načtení filtrů
+            const maxPrice = document.getElementById('max-price').value.trim(); 
+            const condition = document.getElementById('condition').value;
+
             const statusEl = document.getElementById('scanStatus');
             const btn = document.getElementById('scan-btn');
             const userEmail = localStorage.getItem('rr_user_email'); 
@@ -686,7 +708,9 @@ async function requestScan() {
                     body: JSON.stringify({ 
                         query: query, 
                         stores: stores,
-                        ownerEmail: userEmail || 'system' 
+                        ownerEmail: userEmail || 'system' ,
+                        maxPrice: maxPrice,
+                        condition: condition
                     })
                 });
 
