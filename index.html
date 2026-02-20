@@ -227,50 +227,52 @@
         // --- NOTIFICATIONS & CHART LOGIC ---
         let lastNotifiedId = null;
 
+        function showRigNotification(title, price, link, deal) {
+            const container = document.getElementById('notification-container');
+            const id = Date.now();
+            
+            const notification = document.createElement('div');
+            notification.className = "glass-panel pointer-events-auto p-4 rounded-2xl shadow-2xl transform translate-x-full transition-all duration-500 ease-out cursor-pointer hover:border-blue-500/50 min-w-[280px] border border-white/5";
+            notification.id = `notif-${id}`;
+            notification.style.background = "rgba(10, 10, 10, 0.9)";
+            
+            notification.innerHTML = `
+                <div class="flex items-center gap-4">
+                    <div class="bg-blue-600/20 p-2 rounded-lg text-blue-400">📡</div>
+                    <div class="flex-grow">
+                        <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Satellite Found Deal</p>
+                        <p class="text-sm font-bold text-white truncate w-48">${title}</p>
+                        <p class="text-lg font-black text-green-400 mt-1">${price}</p>
+                    </div>
+                </div>
+            `;
 
-function showRigNotification(title, price, link, deal) {
-    const container = document.getElementById('notification-container');
-    const id = Date.now();
-    
-    const notification = document.createElement('div');
-    // pointer-events-auto umožní na notifikaci kliknout, i když kontejner je "průchozí"
-    notification.className = "glass-panel pointer-events-auto p-4 rounded-2xl shadow-2xl transform translate-x-full transition-all duration-500 ease-out cursor-pointer hover:border-blue-500/50 min-w-[280px] border border-white/5";
-    notification.id = `notif-${id}`;
-    notification.style.background = "rgba(10, 10, 10, 0.9)";
-    
-    notification.innerHTML = `
-        <div class="flex items-center gap-4">
-            <div class="bg-blue-600/20 p-2 rounded-lg text-blue-400">📡</div>
-            <div class="flex-grow">
-                <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Satellite Found Deal</p>
-                <p class="text-sm font-bold text-white truncate w-48">${title}</p>
-                <p class="text-lg font-black text-green-400 mt-1">${price}</p>
-            </div>
-        </div>
-    `;
+            notification.onclick = () => {
+                const dealDataEscaped = encodeURIComponent(JSON.stringify(deal))
+                    .replace(/'/g, "%27")
+                    .replace(/\(/g, "%28")
+                    .replace(/\)/g, "%29");
+                openDetail(dealDataEscaped);
+                notification.remove();
+            };
 
-    // Po kliku otevře detail přímo na webu (využije tvoji stávající funkci openDetail)
-    notification.onclick = () => {
-        const dealDataEscaped = encodeURIComponent(JSON.stringify(deal))
-            .replace(/'/g, "%27")
-            .replace(/\(/g, "%28")
-            .replace(/\)/g, "%29");
-        openDetail(dealDataEscaped);
-        // Po kliku notifikaci hned schováme
-        notification.remove();
-    };
+            container.appendChild(notification);
+            setTimeout(() => notification.classList.remove('translate-x-full'), 100);
 
-    container.appendChild(notification);
-    setTimeout(() => notification.classList.remove('translate-x-full'), 100);
+            setTimeout(() => {
+                notification.classList.add('translate-x-[150%]');
+                setTimeout(() => notification.remove(), 500);
+            }, 6000);
+        }
 
-    // Automatické zmizení po 6 sekundách
-    setTimeout(() => {
-        notification.classList.add('translate-x-[150%]');
-        setTimeout(() => notification.remove(), 500);
-    }, 6000);
-}
-// Místo staré notifikace zavolej tu svou novou:
-showRigNotification(deal.title, deal.price, deal.url);
+        function checkNotifications(deal) {
+            if (!deal || !deal.id) return;
+            // Pokud je to nový deal, ukážeme popup a uložíme si jeho ID
+            if (lastNotifiedId !== deal.id) {
+                lastNotifiedId = deal.id;
+                showRigNotification(deal.title, deal.price, deal.url, deal);
+            }
+        }
 
         // --- MODAL LOGIC ---
         function openDetail(dealDataEscaped) {
@@ -366,28 +368,20 @@ showRigNotification(deal.title, deal.price, deal.url);
             });
         }
 
-async function fetchLatestDeal() {
+        async function fetchLatestDeal() {
             try {
                 const userEmail = localStorage.getItem('rr_user_email');
-                // Získáme data včetně 'saved' pole
                 const res = await fetch(`/api/update_price${userEmail ? '?user='+userEmail : ''}`);
                 const data = await res.json();
                 
-                // Vlož do fetchLatestDeal v index.html místo řádku s checkNotifications
+                // NOTIFIKACE (Nyní fungují správně a nespamují)
+                if (data.history && data.history.length > 0) {
+                    checkNotifications(data.history[0]);
+                } else if (data.latest) {
+                    checkNotifications(data.latest);
+                }
 
-// 1. Najdeme nejnovější deal z celé historie (veřejné i tvojí)
-if (data.history && data.history.length > 0) {
-    // Seřadíme pro jistotu, i když by mělo být seřazeno
-    const latestFromHistory = data.history[0]; 
-    
-    // Zkontrolujeme notifikaci pro tento deal
-    checkNotifications(latestFromHistory);
-} else if (data.latest) {
-    // Fallback pro autopilota
-    checkNotifications(data.latest);
-}
-
-                // --- HLAVNÍ KARTA (Zůstává stejná) ---
+                // --- HLAVNÍ KARTA ---
                 if (data.latest) {
                     const priceEl = document.getElementById('price');
                     const opinionEl = document.getElementById('opinion');
@@ -441,10 +435,8 @@ if (data.history && data.history.length > 0) {
                     }
                 }
 
-                // --- LIST UPDATE (S KONTROLOU ULOŽENÝCH) ---
+                // --- LIST UPDATE ---
                 const list = document.getElementById('history-list');
-                
-                // Získáme pole IDček uložených věcí pro rychlou kontrolu
                 const savedIds = (data.saved || []).map(s => s.id);
 
                 if (list && data.history && Array.isArray(data.history)) {
@@ -461,12 +453,12 @@ if (data.history && data.history.length > 0) {
                         let scoreColor = score >= 80 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]' : (score < 45 ? 'bg-red-600' : 'bg-blue-500');
                         let listPrice = deal.price || "---";
                         if(listPrice.includes(":")) listPrice = listPrice.split(":")[1].trim();
-const dealDataEscaped = encodeURIComponent(JSON.stringify(deal))
-    .replace(/'/g, "%27")
-    .replace(/\(/g, "%28")
-    .replace(/\)/g, "%29"); 
-                        // --- ZDE JE TA KONTROLA ---
-                        // Pokud je ID v seznamu uložených, ukážeme fajfku a zelenou barvu
+                        
+                        const dealDataEscaped = encodeURIComponent(JSON.stringify(deal))
+                            .replace(/'/g, "%27")
+                            .replace(/\(/g, "%28")
+                            .replace(/\)/g, "%29"); 
+                        
                         const isSaved = savedIds.includes(deal.id);
                         
                         let saveButtonHtml;
@@ -512,19 +504,22 @@ const dealDataEscaped = encodeURIComponent(JSON.stringify(deal))
             } catch (e) { console.error("Fetch Error:", e); }
         }
 
-async function saveScanFromIndex(event, dealDataEscaped, btn) {
-            event.stopPropagation(); // Aby se neotevřel detail
+        async function saveScanFromIndex(event, dealDataEscaped, btn) {
+            event.stopPropagation(); 
             
-            // 1. ZMĚNA: Kontrolujeme token, ne email
             const token = localStorage.getItem('rr_auth_token');
             if (!token) { 
-                alert("Please log in to save scans!"); 
+                const statusEl = document.getElementById('scanStatus');
+                if (statusEl) {
+                    statusEl.innerText = "⚠️ Please log in to save scans!";
+                    statusEl.className = "text-center text-xs font-mono h-5 text-red-400";
+                    setTimeout(() => { statusEl.innerText = ""; }, 3000);
+                }
                 return; 
             }
 
             const deal = JSON.parse(decodeURIComponent(dealDataEscaped));
             
-            // Vizuální feedback
             const originalContent = btn.innerHTML;
             btn.innerHTML = `✓`;
             btn.classList.add("text-green-500", "border-green-500/50");
@@ -534,17 +529,15 @@ async function saveScanFromIndex(event, dealDataEscaped, btn) {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // 2. ZMĚNA: Posíláme token
+                        'Authorization': `Bearer ${token}` 
                     },
-                    body: JSON.stringify({ deal }) // 3. ZMĚNA: Neposíláme email
+                    body: JSON.stringify({ deal }) 
                 });
                 
-if(!res.ok) {
-                    // Pokud se to nepovede, vrátíme tlačítko do původního stavu
+                if(!res.ok) {
                     btn.innerHTML = originalContent;
                     btn.classList.remove("text-green-500", "border-green-500/50");
 
-                    // Místo alertu vypíšeme chybu do statusu pod vyhledáváním
                     const statusEl = document.getElementById('scanStatus');
                     if (statusEl) {
                         statusEl.innerText = res.status === 401 ? "⚠️ Session expired. Log in again." : "❌ Save failed.";
@@ -552,8 +545,6 @@ if(!res.ok) {
                         setTimeout(() => { statusEl.innerText = ""; }, 3000);
                     }
                 } else {
-                    // Úspěch - už žádný alert ani showToast, pokud ho nemáš definovaný
-                    // Tlačítko už svítí zeleně z předchozího kroku, tak ho tak necháme chvíli
                     setTimeout(() => {
                         btn.innerHTML = originalContent;
                         btn.classList.remove("text-green-500", "border-green-500/50");
@@ -566,56 +557,56 @@ if(!res.ok) {
             }
         }
 
+        async function requestScan() {
+            const query = document.getElementById('scanQuery').value;
+            const customStore = document.getElementById('custom-store').value.trim();
+            const statusEl = document.getElementById('scanStatus');
+            const btn = document.getElementById('scan-btn');
+            const userEmail = localStorage.getItem('rr_user_email'); 
 
-    const query = document.getElementById('scanQuery').value;
-    const customStore = document.getElementById('custom-store').value.trim();
-    const statusEl = document.getElementById('scanStatus');
-    const btn = document.getElementById('scan-btn');
-    const userEmail = localStorage.getItem('rr_user_email'); 
+            if(!query) { statusEl.innerText = "⚠️ Enter product name"; return; }
+            
+            statusEl.innerText = "📡 Sending to satellite...";
+            statusEl.className = "text-center text-xs font-mono h-5 text-yellow-500 animate-pulse";
+            btn.disabled = true;
 
-    if(!query) { statusEl.innerText = "⚠️ Enter product name"; return; }
-    
-    statusEl.innerText = "📡 Sending to satellite...";
-    statusEl.className = "text-center text-xs font-mono h-5 text-yellow-500 animate-pulse";
-    btn.disabled = true;
+            let stores = [];
+            if (customStore) stores = [customStore];
+            else if (document.getElementById('check-ebay').checked) stores = ['ebay'];
+            else stores = ['ebay'];
+            
+            try {
+                const response = await fetch('/api/request_scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: query, 
+                        stores: stores,
+                        ownerEmail: userEmail || 'system' 
+                    })
+                });
 
-    let stores = [];
-    if (customStore) stores = [customStore];
-    else if (document.getElementById('check-ebay').checked) stores = ['ebay'];
-    else stores = ['ebay'];
-    
-    try {
-        const response = await fetch('/api/request_scan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                query: query, 
-                stores: stores,
-                ownerEmail: userEmail || 'system' 
-            })
-        });
+                const data = await response.json();
 
-        const data = await response.json();
-
-        if (response.ok) {
-            statusEl.innerText = `✅ Request received! Scanning ${stores[0]}...`;
-            statusEl.className = "text-center text-xs font-mono h-5 text-green-500";
-            document.getElementById('scanQuery').value = "";
-            document.getElementById('custom-store').value = "";
-        } else {
-            statusEl.innerText = `⚠️ ${data.error || 'Limit reached'}`;
-            statusEl.className = "text-center text-xs font-mono h-5 text-red-400";
+                if (response.ok) {
+                    statusEl.innerText = `✅ Request received! Scanning ${stores[0]}...`;
+                    statusEl.className = "text-center text-xs font-mono h-5 text-green-500";
+                    document.getElementById('scanQuery').value = "";
+                    document.getElementById('custom-store').value = "";
+                } else {
+                    statusEl.innerText = `⚠️ ${data.error || 'Limit reached'}`;
+                    statusEl.className = "text-center text-xs font-mono h-5 text-red-400";
+                }
+            } catch (e) { 
+                statusEl.innerText = "❌ Connection error"; 
+                statusEl.className = "text-center text-xs font-mono h-5 text-red-500";
+            } finally { 
+                setTimeout(() => { 
+                    btn.disabled = false; 
+                    statusEl.innerText = ""; 
+                }, 3000); 
+            }
         }
-    } catch (e) { 
-        statusEl.innerText = "❌ Connection error"; 
-        statusEl.className = "text-center text-xs font-mono h-5 text-red-500";
-    } finally { 
-        setTimeout(() => { 
-            btn.disabled = false; 
-            statusEl.innerText = ""; 
-        }, 3000); 
-    }
-}
 
         document.addEventListener('DOMContentLoaded', async () => {
             await loadLayout(); 
@@ -624,5 +615,7 @@ if(!res.ok) {
             setInterval(fetchLatestDeal, 10000); 
         });
     </script>
+</body>
+</html>
 </body>
 </html>
