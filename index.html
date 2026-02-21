@@ -102,10 +102,40 @@
         </div>
 
         <div class="w-full space-y-4">
+<div class="flex flex-col gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="glass-panel p-1 rounded-2xl flex items-center shadow-lg shadow-blue-900/5 ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all">
+                        <span class="pl-4 text-gray-500">📦</span>
+                        <input type="text" id="scanQuery" placeholder="Product (e.g. RTX 4070)" class="flex-grow bg-transparent border-none text-white px-4 py-4 focus:outline-none placeholder-gray-600 text-base md:text-lg">
+                    </div>
+                    <div class="glass-panel p-1 rounded-2xl flex items-center shadow-lg shadow-blue-900/5 ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all">
+                        <span class="pl-4 text-gray-500">🏪</span>
+                        <input type="text" id="custom-store" placeholder="Store (e.g. Alza, Amazon)" class="flex-grow bg-transparent border-none text-white px-4 py-4 focus:outline-none placeholder-gray-600 text-base md:text-lg">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="glass-panel p-1 rounded-xl flex items-center ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all">
+                        <span class="pl-4 text-gray-500">💰</span>
+                        <input type="number" id="min-price" placeholder="Min $" class="w-1/2 bg-transparent border-none text-white px-2 py-3 focus:outline-none placeholder-gray-600 text-sm text-center border-r border-white/5">
+                        <input type="number" id="max-price" placeholder="Max $" class="w-1/2 bg-transparent border-none text-white px-2 py-3 focus:outline-none placeholder-gray-600 text-sm text-center">
+                    </div>
+                    
+                    <div class="glass-panel p-1.5 rounded-xl flex items-center gap-1 ring-1 ring-white/5">
+                        <span class="pl-2 pr-2 text-gray-500 hidden sm:inline">🏷️</span>
+                        <input type="hidden" id="condition-val" value="any">
+                        <button onclick="setCondition('any', this)" class="cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-blue-600/30 text-white border border-blue-500/50 transition-all shadow-[0_0_10px_rgba(37,99,235,0.2)]">ANY</button>
+                        <button onclick="setCondition('new', this)" class="cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent transition-all">NEW</button>
+                        <button onclick="setCondition('used', this)" class="cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent transition-all">USED</button>
+                    </div>
+                </div>
             </div>
             
-      
-
+            <button onclick="requestScan()" id="scan-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all uppercase tracking-wider text-sm shadow-lg shadow-blue-900/20 active:scale-95">
+                RUN RADAR SCAN 🚀
+            </button>
+            <div id="scanStatus" class="text-center text-xs font-mono h-5 text-gray-500"></div>
+        </div>
 <div class="w-full glass-panel p-6 rounded-[20px] relative">
             <div class="flex flex-col mb-4">
                 <div class="flex items-center justify-between">
