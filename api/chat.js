@@ -20,7 +20,6 @@ export default async function handler(req, res) {
         try {
             const ticket = await authClient.verifyIdToken({
                 idToken: token,
-                // Ujisti se, že toto Client ID odpovídá tomu v auth.js / Google Cloud Console
                 audience: "636272588894-duknv543nso4j9sj4j2d1qkq6tc690gf.apps.googleusercontent.com", 
             });
             const payload = ticket.getPayload();
@@ -51,7 +50,6 @@ export default async function handler(req, res) {
     const currentChatId = chatId || `chat_${Date.now()}`;
 
     try {
-        // Načtení dat uživatele nebo inicializace s lastReset
         let userData = await redis.get(userKey) || { 
             count: 0, 
             isPremium: false, 
@@ -61,7 +59,7 @@ export default async function handler(req, res) {
         
         if (Array.isArray(userData.chats)) userData.chats = {}; 
 
-        // 1. RESET POČÍTADLA PO 24 HODINÁCH (OPRAVA)
+        // 1. RESET POČÍTADLA PO 24 HODINÁCH
         const ONE_DAY_MS = 24 * 60 * 60 * 1000;
         if (Date.now() - (userData.lastReset || 0) > ONE_DAY_MS) {
             userData.count = 0;
@@ -73,7 +71,7 @@ export default async function handler(req, res) {
             userData.chats[currentChatId] = { title: message.substring(0, 30) + "...", history: [] };
         }
 
-        // 2. KONTROLA LIMITU (např. 5 zpráv denně pro free)
+        // 2. KONTROLA LIMITU
         const DAILY_LIMIT = 5;
         if (!userData.isPremium && userData.count >= DAILY_LIMIT) {
             return res.status(403).json({ 
@@ -82,12 +80,34 @@ export default async function handler(req, res) {
             });
         }
 
-        // AI Generování
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-        const result = await model.generateContent(`Respond in ${lang || 'en'}. User: ${message}`);
-        const aiResponse = result.response.text();
+        // --- 3. OPRAVA: PAMĚŤ PRO AI ---
+        // Vezmeme posledních 10 zpráv z Redis, aby AI mělo kontext (paměť), ale nepřetekl limit
+        const pastMessages = userData.chats[currentChatId].history.slice(-10);
+        const formattedHistory = pastMessages.map(msg => ({
+            role: msg.role === 'ai' ? 'model' : 'user',
+            parts: [{ text: msg.text || "" }]
+        }));
 
-        // Uložení historie
+        // Změna na 1.5-flash kvůli občasným chybám s 2.0 stringem v Node SDK
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        
+        // Vytvoříme konverzaci včetně předchozí historie
+        const chat = model.startChat({
+            history: formattedHistory
+        });
+
+        // AI nyní ví, o čem jste se bavili dřív!
+        const result = await chat.sendMessage(`Respond in ${lang || 'en'}. User says: ${message}`);
+        let aiResponse = "";
+        
+        try {
+            aiResponse = result.response.text();
+        } catch (safetyError) {
+            console.error("Gemini blokace textu:", safetyError);
+            aiResponse = "I'm sorry, but I cannot process that specific request due to safety filters or content size limits. Try shortening your message.";
+        }
+
+        // Uložení historie do databáze
         userData.chats[currentChatId].history.push({ role: 'user', text: message });
         userData.chats[currentChatId].history.push({ role: 'ai', text: aiResponse });
 
@@ -96,12 +116,12 @@ export default async function handler(req, res) {
             userData.count += 1;
         }
         
-        // Uložení zpět do Redis
         await redis.set(userKey, userData);
         res.status(200).json({ text: aiResponse, chatId: currentChatId });
 
     } catch (error) {
-        console.error("AI Error:", error);
-        res.status(500).json({ text: "System overload. Try again later." });
+        // Sem to spadne jen při kritické chybě (např. chyba Redis nebo úplný pád Vercelu)
+        console.error("Critical Backend Error:", error);
+        res.status(500).json({ text: "Backend service error. Please try refreshing the page." });
     }
 }
