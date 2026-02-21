@@ -15,7 +15,11 @@
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
         
-        .msg-ai { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); }
+       .msg-ai { 
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid rgba(255,255,255,0.05); 
+            backdrop-filter: blur(10px); /* Adds that premium glass feel */
+        }
         .msg-user { background: #2563eb; }
         .active-chat { background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); color: white; }
         
@@ -163,15 +167,15 @@
             loadSidebar();
         }
 
-        async function sendMessage() {
+async function sendMessage() {
             const input = document.getElementById('user-input');
             const email = localStorage.getItem('rr_user_email');
-            const token = localStorage.getItem('rr_auth_token'); // 1. Načtení tokenu
+            const token = localStorage.getItem('rr_auth_token');
             const message = input.value;
             
             if(!message) return;
             
-            if(!email || !token) { // 2. Kontrola
+            if(!email || !token) {
                 if(typeof showToast === 'function') showToast("Please log in first!", "info");
                 else alert("Please log in first!");
                 return;
@@ -187,7 +191,7 @@
                     method: 'POST', 
                     headers: { 
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // 3. Token pro backend
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({ message, email, chatId: activeChatId, lang: 'en' })
                 });
@@ -198,10 +202,26 @@
                     if(typeof showToast === 'function') showToast(data.text, "error");
                 } else if (response.status === 401) {
                     if(typeof showToast === 'function') showToast("Session expired. Login again.", "error");
-                    else alert("Session expired");
                 } else {
                     if (!activeChatId && data.chatId) activeChatId = data.chatId;
-                    chatBox.innerHTML += `<div class="msg-ai p-4 rounded-2xl rounded-tl-none max-w-[85%] text-gray-300 text-sm mt-2 leading-relaxed border border-white/5 shadow-sm">${data.text}</div>`;
+                    
+                    // --- AI TO SCANNER BRIDGE LOGIC ---
+                    // Clean punctuation so the search term is perfect for the radar
+                    const scanTerm = message.replace(/[?!.]/g, '').trim(); 
+
+                    chatBox.innerHTML += `
+                        <div class="msg-ai p-4 rounded-2xl rounded-tl-none max-w-[85%] text-gray-300 text-sm mt-2 leading-relaxed border border-white/5 shadow-sm flex flex-col gap-3">
+                            <span>${data.text}</span>
+                            
+                            <button onclick="window.location.href='index.html?scan=' + encodeURIComponent('${scanTerm}')" 
+                                    class="mt-2 w-full bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/50 font-bold py-3 rounded-xl uppercase tracking-widest text-[10px] transition-all shadow-[0_0_15px_rgba(37,99,235,0.1)] hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] flex items-center justify-center gap-2 group">
+                                <svg class="w-3 h-3 group-hover:animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                Scan Market for "${scanTerm}"
+                            </button>
+                        </div>`;
+                    
                     await loadSidebar();
                 }
                 chatBox.scrollTop = chatBox.scrollHeight;
@@ -209,7 +229,6 @@
                 if(typeof showToast === 'function') showToast("Connection error", "error");
             }
         }
-
 
         document.addEventListener('DOMContentLoaded', loadLayout);
     </script>
