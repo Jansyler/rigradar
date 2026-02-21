@@ -122,9 +122,23 @@
             }
         }
 
+// Pomocná funkce pro přečtení dat z Google Tokenu
+        function parseJwt(token) {
+            try {
+                return JSON.parse(atob(token.split('.')[1]));
+            } catch (e) {
+                return null;
+            }
+        }
+
         // --- 2. GOOGLE OAUTH ---
         async function handleGoogle(response) {
             try {
+                // 1. Nejprve si sami přečteme profilovku od Googlu
+                const payload = parseJwt(response.credential);
+                const googlePic = payload ? payload.picture : null;
+
+                // 2. Pošleme to na náš backend pro ověření a získání naší relace
                 const res = await fetch(`/api/auth?action=google`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -133,8 +147,12 @@
                 const data = await res.json();
                 
                 if (res.ok) {
+                    // 3. Uložíme náš nový token, email A OFICIÁLNÍ FOTKU!
                     localStorage.setItem('rr_auth_token', data.token);
                     localStorage.setItem('rr_user_email', data.email);
+                    if (googlePic) {
+                        localStorage.setItem('rr_user_pic', googlePic);
+                    }
                     window.location.href = 'chat.html';
                 } else {
                     showError("Google login failed on backend.");
