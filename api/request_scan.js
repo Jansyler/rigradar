@@ -14,7 +14,11 @@ export default async function handler(req, res) {
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      verifiedEmail = await redis.get(`session:${token}`);
+      try {
+          verifiedEmail = await redis.get(`session:${token}`);
+      } catch (e) {
+          console.error("Session verification failed:", e);
+      }
   }
 
   if (!verifiedEmail) {
@@ -29,28 +33,28 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "Forbidden. Email mismatch." });
   }
 
-  // 2. KONTROLA PREMIUM LIMITŮ
-  // Zjistíme z databáze, zda má uživatel zaplaceno Premium
-  const userData = await redis.get(`user_data:${verifiedEmail}`) || {};
-  const isPremium = userData.isPremium === true;
-
-  // Vyžádané obchody (pokud nevybere, dáme eBay)
-  const requestedStores = stores && stores.length > 0 ? stores : ['ebay'];
-
-  // Pokud NENÍ premium a chce skenovat Amazon nebo Alzu -> ZAMÍTNOUT
-  if (!isPremium) {
-      const premiumStores = ['amazon', 'alza'];
-      const wantsPremiumStore = requestedStores.some(store => premiumStores.includes(store.toLowerCase()));
-      
-      if (wantsPremiumStore) {
-          return res.status(403).json({ 
-              error: 'Amazon and Alza are available for Premium users only. Upgrade to access.' 
-          });
-      }
-  }
-
-  // 3. Odeslání do fronty (do Pythonu)
+  // 2. KONTROLA PREMIUM LIMITŮ Z NOVÉHO ATOMICKÉHO KLÍČE
   try {
+    // 🚨 OPRAVA: Čteme z klíče nastaveného novým webhookem
+    const premiumData = await redis.get(`premium:${verifiedEmail}`);
+    const isPremium = premiumData ? premiumData.isActive === true : false;
+
+    // Vyžádané obchody (pokud nevybere, dáme eBay)
+    const requestedStores = stores && stores.length > 0 ? stores : ['ebay'];
+
+    // Pokud NENÍ premium a chce skenovat Amazon nebo Alzu -> ZAMÍTNOUT
+    if (!isPremium) {
+        const premiumStores = ['amazon', 'alza'];
+        const wantsPremiumStore = requestedStores.some(store => premiumStores.includes(store.toLowerCase()));
+        
+        if (wantsPremiumStore) {
+            return res.status(403).json({ 
+                error: 'Amazon and Alza are available for Premium users only. Upgrade to access.' 
+            });
+        }
+    }
+
+    // 3. Odeslání do fronty (pro Python worker na VPS)
     const task = JSON.stringify({
       query: query,
       stores: requestedStores,
@@ -67,7 +71,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, message: 'Scan queued successfully' });
 
   } catch (error) {
-    console.error("Redis Error:", error);
-    return res.status(500).json({ error: "Database error." });
+    console.error("Database/Queue Error:", error);
+    return res.status(500).json({ error: "Service unavailable. Try again later." });
   }
 }
