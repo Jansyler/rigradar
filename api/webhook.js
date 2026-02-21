@@ -32,37 +32,52 @@ export default async function handler(req, res) {
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    const session = event.data.object;
-    // Stripe posílá email buď v customer_details, nebo v metadata (pokud jsme ho tam uložili)
-    const email = session.customer_details?.email || session.metadata?.user_email;
+    const stripeObject = event.data.object;
+    
+    // Zkusíme najít email v objektu (funguje pro checkout session a invoice)
+    let email = stripeObject.customer_details?.email || stripeObject.customer_email || stripeObject.metadata?.user_email;
 
-    if (email) {
-        const userKey = `user_data:${email}`;
-
-        // 🟢 AKTIVACE PREMIUM (Při zaplacení)
-        if (event.type === 'checkout.session.completed' || event.type === 'invoice.paid') {
-            let userData = await redis.get(userKey) || { count: 0, isPremium: false, chats: {} };
-            
-            userData.isPremium = true;
-            // DŮLEŽITÉ: Uložíme ID zákazníka, aby fungovalo tlačítko "Manage Subscription" v account.html
-            userData.stripeCustomerId = session.customer; 
-            
-            await redis.set(userKey, userData);
-            console.log(`✅ PREMIUM ACTIVATED: ${email}`);
+    try {
+        // 🚨 OPRAVA: Pokud email chybí (např. při zrušení předplatného), dotáhneme ho ze Stripe API pomocí ID zákazníka
+        if (!email && stripeObject.customer) {
+            const customer = await stripe.customers.retrieve(stripeObject.customer);
+            email = customer.email;
         }
 
-        // 🔴 ZRUŠENÍ PREMIUM (Při smazání předplatného)
-        if (event.type === 'customer.subscription.deleted') {
-            let userData = await redis.get(userKey) || { count: 0, isPremium: false, chats: {} };
-            
-            userData.isPremium = false;
-            
-            await redis.set(userKey, userData);
-            console.log(`❌ PREMIUM CANCELED: ${email}`);
+        if (email) {
+            const userKey = `user_data:${email}`;
+
+            // 🟢 AKTIVACE PREMIUM (Při zaplacení)
+            if (event.type === 'checkout.session.completed' || event.type === 'invoice.paid') {
+                // Odstraněno "count: 0", protože limity už řešíme atomicky jinde
+                let userData = await redis.get(userKey) || { isPremium: false, chats: {} };
+                
+                userData.isPremium = true;
+                userData.stripeCustomerId = stripeObject.customer; 
+                
+                await redis.set(userKey, userData);
+                console.log(`✅ PREMIUM ACTIVATED: ${email}`);
+            }
+
+            // 🔴 ZRUŠENÍ PREMIUM (Při smazání předplatného)
+            if (event.type === 'customer.subscription.deleted') {
+                let userData = await redis.get(userKey) || { isPremium: false, chats: {} };
+                
+                userData.isPremium = false;
+                
+                await redis.set(userKey, userData);
+                console.log(`❌ PREMIUM CANCELED: ${email}`);
+            }
+        } else {
+            console.log("⚠️ Webhook received but no email could be resolved.", event.type);
         }
+
+        res.json({ received: true });
+    } catch (error) {
+        console.error("Webhook processing error:", error);
+        // Pošleme chybu 500, aby Stripe věděl, že má webhook zkusit poslat znovu později
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    res.json({ received: true });
 }
 
 // Musíme vypnout bodyParser, aby mohl Stripe ověřit podpis (signature)
