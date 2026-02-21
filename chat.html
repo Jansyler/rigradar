@@ -270,22 +270,41 @@
             }
         }
 
-        function switchChat(id) {
-            activeChatId = id;
-            const chatBox = document.getElementById('chat-box');
-            chatBox.innerHTML = '';
-            if (allChats[id] && allChats[id].history) {
-                allChats[id].history.forEach(msg => {
-                    const isUser = msg.role === 'user';
-                    chatBox.innerHTML += `
-                        <div class="${isUser ? 'msg-user self-end ml-auto text-white' : 'msg-ai text-gray-300'} p-4 rounded-2xl ${isUser ? 'rounded-tr-none' : 'rounded-tl-none'} max-w-[85%] text-sm leading-relaxed mb-2 shadow-md">
-                            ${msg.text}
-                        </div>`;
-                });
-            }
-            chatBox.scrollTop = chatBox.scrollHeight;
-            loadSidebar(); // Obnoví výber v menu
+ async function switchChat(id) {
+    activeChatId = id;
+    const chatBox = document.getElementById('chat-box');
+    
+    // Vizualizace načítání v modrém stylu
+    chatBox.innerHTML = `
+        <div class="flex items-center gap-2 mb-3 border-b border-white/5 pb-3">
+            <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] shadow-[0_0_10px_rgba(37,99,235,0.5)]">🤖</div>
+            <span class="text-[10px] uppercase tracking-widest text-blue-400 animate-pulse font-bold">Decrypting logs...</span>
+        </div>`;
+    
+    const token = localStorage.getItem('rr_auth_token');
+    try {
+        // Dotaz na konkrétní historii jednoho chatu
+        const res = await fetch(`/api/chat?chatId=${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        chatBox.innerHTML = ''; 
+        
+        if (data.history && data.history.length > 0) {
+            data.history.forEach(msg => {
+                const isUser = msg.role === 'user';
+                chatBox.innerHTML += `
+                    <div class="${isUser ? 'msg-user self-end ml-auto text-white' : 'msg-ai text-gray-300'} p-5 rounded-3xl ${isUser ? 'rounded-tr-sm' : 'rounded-tl-sm'} max-w-[90%] md:max-w-[85%] text-sm leading-relaxed mb-4 shadow-lg">
+                        ${msg.text}
+                    </div>`;
+            });
         }
+        chatBox.scrollTop = chatBox.scrollHeight;
+        loadSidebar(); 
+    } catch (e) {
+        chatBox.innerHTML = '<div class="text-center text-red-500 text-xs mt-4">Failed to establish connection to archives.</div>';
+    }
+}
 
         function startNewChat() {
             activeChatId = null;
