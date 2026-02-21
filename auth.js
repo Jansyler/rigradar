@@ -73,11 +73,11 @@ function updateAuthUI(retryCount = 0) {
     }
 
 // HTML šablona pro přihlášeného uživatele (DESKTOP)
-const userHtml = email ? `
+    const userHtml = email ? `
         <div class="flex items-center gap-2 bg-white/5 p-1 pr-3 rounded-full border ${isPremium ? 'border-yellow-500/50' : 'border-white/10'} hover:bg-white/10 transition-all cursor-pointer group">
             <div onclick="window.location.href='account.html'" class="flex items-center gap-2">
                 <img src="${pic}" class="w-8 h-8 rounded-full border ${isPremium ? 'border-yellow-500' : 'border-blue-500/50'}">
-                <span class="text-[10px] font-bold ${isPremium ? 'text-yellow-500' : 'text-gray-400'} hidden sm:inline group-hover:text-white transition-colors">
+                <span class="text-[11px] font-bold uppercase tracking-tight ${isPremium ? 'text-yellow-500' : 'text-gray-300'} hidden sm:inline group-hover:text-white transition-colors">
                     ${isPremium ? 'PREMIUM' : email.split('@')[0]}
                 </span>
             </div>
@@ -85,7 +85,6 @@ const userHtml = email ? `
             <button onclick="logout()" class="text-gray-500 hover:text-red-500 text-[10px] font-black px-1 transition-colors" title="Log Out">✕</button>
         </div>
     ` : `<button onclick="window.location.href='login.html'" class="text-white text-xs font-bold border border-white/20 px-6 py-2 rounded-xl bg-[#111] hover:bg-white/10 transition-all">Log In</button>`;
-
     if (desktopAuth) desktopAuth.innerHTML = userHtml;
 
     if (mobileAuth) {
