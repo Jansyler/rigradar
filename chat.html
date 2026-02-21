@@ -76,8 +76,10 @@
                     <div class="msg-ai p-6 rounded-2xl rounded-tl-sm max-w-[90%] md:max-w-[80%] text-gray-300 text-sm leading-relaxed shadow-lg">
                         <div class="flex items-center gap-2 mb-3">
                             <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px]">🤖</div>
-                            <span class="text-[10px] uppercase tracking-widest text-blue-400 font-bold">RigRadar AI</span>
-                        </div>
+<div class="flex items-center gap-2 mb-3">
+    <div id="system-status-dot" class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
+    <span id="system-status-text" class="text-[10px] uppercase tracking-widest text-blue-400 font-bold">System Online</span>
+</div>                        </div>
                         Hello! I'm your personal hardware advisor. Tell me what you're building (e.g. "1440p gaming PC for $1200") or ask me to compare specific parts. When you're ready, we'll deploy the radar to find the best prices.
                     </div>
                 </div>
@@ -185,7 +187,7 @@
     <div id="header-placeholder"></div>
 
 <script src="auth.js"></script>
-    <script>
+<script>
         // --- MOBILE TAB LOGIC ---
         function switchTab(tab) {
             const chatView = document.getElementById('view-chat');
@@ -234,7 +236,7 @@
         }
 
         // ==========================================
-        // 🔴 CHÝBAJÚCE FUNKCIE PRE HISTÓRIU A CHATY
+        // 🔴 FUNKCE PRO HISTORII A CHATY (Opraveno pro nový Backend)
         // ==========================================
         let activeChatId = null;
         let allChats = {};
@@ -257,7 +259,7 @@
                 Object.keys(allChats).sort((a, b) => {
                     const timeA = parseInt(a.split('_')[1]) || 0;
                     const timeB = parseInt(b.split('_')[1]) || 0;
-                    return timeB - timeA; // Zoraďuje od najnovšieho po najstaršie
+                    return timeB - timeA; 
                 }).forEach(id => {
                     const btn = document.createElement('button');
                     btn.className = `w-full text-left p-3 rounded-lg hover:bg-white/5 truncate transition-all text-xs border border-transparent ${activeChatId === id ? 'active-chat' : 'border-transparent'}`;
@@ -270,41 +272,40 @@
             }
         }
 
- async function switchChat(id) {
-    activeChatId = id;
-    const chatBox = document.getElementById('chat-box');
-    
-    // Vizualizace načítání v modrém stylu
-    chatBox.innerHTML = `
-        <div class="flex items-center gap-2 mb-3 border-b border-white/5 pb-3">
-            <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] shadow-[0_0_10px_rgba(37,99,235,0.5)]">🤖</div>
-            <span class="text-[10px] uppercase tracking-widest text-blue-400 animate-pulse font-bold">Decrypting logs...</span>
-        </div>`;
-    
-    const token = localStorage.getItem('rr_auth_token');
-    try {
-        // Dotaz na konkrétní historii jednoho chatu
-        const res = await fetch(`/api/chat?chatId=${id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        chatBox.innerHTML = ''; 
-        
-        if (data.history && data.history.length > 0) {
-            data.history.forEach(msg => {
-                const isUser = msg.role === 'user';
-                chatBox.innerHTML += `
-                    <div class="${isUser ? 'msg-user self-end ml-auto text-white' : 'msg-ai text-gray-300'} p-5 rounded-3xl ${isUser ? 'rounded-tr-sm' : 'rounded-tl-sm'} max-w-[90%] md:max-w-[85%] text-sm leading-relaxed mb-4 shadow-lg">
-                        ${msg.text}
-                    </div>`;
-            });
+        // OPRAVA: Už nehledáme ve velkém JSONu, ale ptáme se backendu na historii jednoho chatu
+        async function switchChat(id) {
+            activeChatId = id;
+            const chatBox = document.getElementById('chat-box');
+            
+            chatBox.innerHTML = `
+                <div class="flex items-center gap-2 mb-3 border-b border-white/5 pb-3">
+                    <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] shadow-[0_0_10px_rgba(37,99,235,0.5)]">🤖</div>
+                    <span class="text-[10px] uppercase tracking-widest text-blue-400 animate-pulse font-bold">Decrypting logs...</span>
+                </div>`;
+            
+            const token = localStorage.getItem('rr_auth_token');
+            try {
+                const res = await fetch(`/api/chat?chatId=${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                chatBox.innerHTML = ''; 
+                
+                if (data.history && data.history.length > 0) {
+                    data.history.forEach(msg => {
+                        const isUser = msg.role === 'user';
+                        chatBox.innerHTML += `
+                            <div class="${isUser ? 'msg-user self-end ml-auto text-white' : 'msg-ai text-gray-300'} p-4 rounded-2xl ${isUser ? 'rounded-tr-none' : 'rounded-tl-none'} max-w-[85%] text-sm leading-relaxed mb-2 shadow-md">
+                                ${msg.text}
+                            </div>`;
+                    });
+                }
+                chatBox.scrollTop = chatBox.scrollHeight;
+                loadSidebar(); 
+            } catch (e) {
+                chatBox.innerHTML = '<div class="text-center text-red-500 text-xs mt-4">Failed to establish connection to archives.</div>';
+            }
         }
-        chatBox.scrollTop = chatBox.scrollHeight;
-        loadSidebar(); 
-    } catch (e) {
-        chatBox.innerHTML = '<div class="text-center text-red-500 text-xs mt-4">Failed to establish connection to archives.</div>';
-    }
-}
 
         function startNewChat() {
             activeChatId = null;
@@ -316,7 +317,6 @@
                 </div>`;
             loadSidebar(); 
         }
-        // ==========================================
 
         async function sendMessage() {
             const input = document.getElementById('user-input');
@@ -352,7 +352,7 @@
                             ${data.text}
                         </div>`;
                         
-                    loadSidebar(); // Načíta nový chat do zoznamu
+                    loadSidebar(); 
                 } else {
                     chatBox.innerHTML += `<div class="msg-ai p-3 text-red-400 text-xs">${data.text || "Error"}</div>`;
                 }
@@ -360,6 +360,19 @@
             } catch (e) {
                 document.getElementById(typingId).remove();
             }
+        }
+
+        // ==========================================
+        // 📡 DYNAMICKÝ POLLING LOGIC
+        // ==========================================
+        let pollingInterval = null;
+        let currentIntervalTime = 60000; // Začínáme pomalu (každých 60 vteřin)
+
+        function startPolling(ms) {
+            if (pollingInterval) clearInterval(pollingInterval);
+            currentIntervalTime = ms;
+            pollingInterval = setInterval(fetchLatestDeal, ms);
+            console.log(`📡 Radar Polling: ${ms / 1000}s`);
         }
 
         // --- RADAR LOGIC ---
@@ -371,11 +384,17 @@
             const condition = document.getElementById('condition-val').value;
             const statusEl = document.getElementById('scanStatus');
             const btn = document.getElementById('scan-btn');
+            const container = document.getElementById('scanner-container');
             const userEmail = localStorage.getItem('rr_user_email'); 
 
             if(!query) { statusEl.innerText = "⚠️ Enter product name"; return; }
             
+            // 🚀 ZRYCHLENÍ POLLINGU PŘI SKENOVÁNÍ
+            startPolling(3000); 
+            setTimeout(() => { if (currentIntervalTime === 3000) startPolling(60000); }, 120000); // Pojistka na 2 minuty
+            
             btn.disabled = true;
+            if (container) container.classList.add('scanning'); // Přidá laser efekt z CSS
             statusEl.className = "text-center text-xs font-mono h-4 text-blue-400 animate-pulse";
             
             const moodMessages = ["> Initializing...", "> Bypassing protection...", "> Analyzing AI data...", "> Extracting price..."];
@@ -388,7 +407,7 @@
             try {
                 const response = await fetch('/api/request_scan', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('rr_auth_token')}` },
                     body: JSON.stringify({ 
                         query: query, 
                         stores: customStore ? [customStore] : ['ebay'],
@@ -398,20 +417,27 @@
                 });
 
                 clearInterval(moodInterval);
+                const data = await response.json();
+
                 if (response.ok) {
-                    statusEl.innerText = `✅ Satellite deployed! Check history in a moment.`;
+                    statusEl.innerText = `✅ Satellite deployed! Check history.`;
                     statusEl.className = "text-center text-xs font-mono h-4 text-green-500";
-                    setTimeout(fetchLatestDeal, 5000);
                 } else {
-                    statusEl.innerText = `⚠️ Limit reached or Error.`;
+                    statusEl.innerText = `⚠️ ${data.error || 'Limit reached or Error'}`;
                     statusEl.className = "text-center text-xs font-mono h-4 text-red-400";
+                    startPolling(60000); // Zpomalit při chybě
                 }
             } catch (e) { 
                 clearInterval(moodInterval);
                 statusEl.innerText = "❌ Connection error"; 
                 statusEl.className = "text-center text-xs font-mono h-4 text-red-500";
+                startPolling(60000);
             } finally { 
-                setTimeout(() => { btn.disabled = false; statusEl.innerText = ""; }, 4000); 
+                setTimeout(() => { 
+                    btn.disabled = false; 
+                    statusEl.innerText = ""; 
+                    if (container) container.classList.remove('scanning');
+                }, 4000); 
             }
         }
 
@@ -437,7 +463,31 @@
                 const res = await fetch(`/api/update_price?user=${userEmail}`);
                 const data = await res.json();
                 
-                if (data.history && Array.isArray(data.history)) {
+                // --- HEARTBEAT KONTROLA ---
+                const dot = document.getElementById('system-status-dot');
+                const text = document.getElementById('system-status-text');
+                
+                if (dot && text && data.systemStatus) {
+                    const lastSeen = data.systemStatus.timestamp;
+                    const diff = (Date.now() - lastSeen) / 1000;
+
+                    if (diff > 120) { // Pokud se radar neozval víc než 2 minuty
+                        dot.className = "w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]";
+                        text.innerText = "System Offline";
+                        text.className = "text-[10px] uppercase tracking-widest text-red-500 font-bold";
+                    } else {
+                        dot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
+                        text.innerText = "System Online";
+                        text.className = "text-[10px] uppercase tracking-widest text-blue-400 font-bold";
+                    }
+                }
+
+                if (data.history && Array.isArray(data.history) && data.history.length > 0) {
+                    // 🐢 ZPOMALENÍ POLLINGU (Data už máme)
+                    if (currentIntervalTime === 3000) {
+                        startPolling(60000);
+                    }
+
                     const list = document.getElementById('history-list');
                     let htmlContent = '';
                     const chartPrices = [];
@@ -497,10 +547,8 @@
         document.addEventListener('DOMContentLoaded', async () => {
             loadLayout();
             initChart();
-            fetchLatestDeal();
-            setInterval(fetchLatestDeal, 15000); 
+            startPolling(60000); // 🚀 Zde startuje chytrý polling při načtení
             
-            // 🔥 KONEČNE: TOTO NAČÍTA HISTÓRIU HNEĎ PO ZAPNUTÍ STRÁNKY
             await loadSidebar(); 
         });
     </script>
