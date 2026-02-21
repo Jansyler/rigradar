@@ -19,8 +19,7 @@ export default async function handler(req, res) {
     const { action } = req.query;
 
     try {
-        // --- 1. GITHUB CALLBACK (TOTO JE NOVÉ - Přijímá GET redirect z GitHubu) ---
-        if (req.method === 'GET' && action === 'github_callback') {
+if (req.method === 'GET' && action === 'github_callback') {
             const { code } = req.query;
             if (!code) return res.status(400).send("No code provided by GitHub.");
 
@@ -32,8 +31,8 @@ export default async function handler(req, res) {
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    client_id: process.env.GITHUB_CLIENT_ID,         // Musíš nastavit ve Vercelu!
-                    client_secret: process.env.GITHUB_CLIENT_SECRET, // Musíš nastavit ve Vercelu!
+                    client_id: process.env.GITHUB_CLIENT_ID,
+                    client_secret: process.env.GITHUB_CLIENT_SECRET,
                     code: code
                 })
             });
@@ -41,6 +40,16 @@ export default async function handler(req, res) {
             const tokenData = await tokenResponse.json();
             const accessToken = tokenData.access_token;
             if (!accessToken) return res.status(400).send("GitHub authentication failed.");
+
+            // --- TADY JE TA ZMĚNA: Získání dat o uživateli (včetně fotky) ---
+            const userResponse = await fetch('https://api.github.com/user', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'User-Agent': 'RigRadar-App'
+                }
+            });
+            const userData = await userResponse.json();
+            const githubPic = userData.avatar_url; // Získání URL profilovky
 
             // B) Získání e-mailu uživatele z GitHubu
             const emailResponse = await fetch('https://api.github.com/user/emails', {
@@ -51,7 +60,6 @@ export default async function handler(req, res) {
             });
             
             const emails = await emailResponse.json();
-            // Najdeme primární a ověřený email (uživatel jich může mít víc)
             const primaryEmailObj = emails.find(e => e.primary && e.verified) || emails[0];
             if (!primaryEmailObj || !primaryEmailObj.email) {
                 return res.status(400).send("No valid email found on your GitHub account.");
@@ -62,8 +70,8 @@ export default async function handler(req, res) {
             // C) Vytvoření naší RigRadar Session v Redisu
             const sessionToken = await generateSession(email);
 
-            // D) Přesměrování zpět do naší aplikace s tokenem v URL
-            return res.redirect(`/chat.html?token=${sessionToken}&email=${encodeURIComponent(email)}`);
+            // D) Přesměrování zpět s tokenem, emailem A NOVĚ I S FOTKOU v URL
+            return res.redirect(`/chat.html?token=${sessionToken}&email=${encodeURIComponent(email)}&pic=${encodeURIComponent(githubPic)}`);
         }
 
         // --- VŠECHNY OSTATNÍ AKCE MUSÍ BÝT POST ---
