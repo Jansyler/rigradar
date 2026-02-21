@@ -59,6 +59,8 @@ export default async function handler(req, res) {
             lastReset: Date.now() 
         };
         
+        // Záchranná brzda proti pádům (TypeError: Cannot read properties of undefined)
+        userData.chats = userData.chats || {};
         if (Array.isArray(userData.chats)) userData.chats = {}; 
 
         // 1. RESET POČÍTADLA PO 24 HODINÁCH (OPRAVA)
@@ -82,9 +84,23 @@ export default async function handler(req, res) {
             });
         }
 
-        // AI Generování
+        // AI Generování s pamětí (Historie chatu)
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-        const result = await model.generateContent(`Respond in ${lang || 'en'}. User: ${message}`);
+        
+        // Formátování historie pro Gemini
+        const chatHistory = userData.chats[currentChatId].history || [];
+        const formattedHistory = chatHistory.map(msg => ({
+            role: msg.role === 'ai' ? 'model' : 'user',
+            parts: [{ text: msg.text }]
+        }));
+
+        // Spuštění chatu s historií
+        const chat = model.startChat({
+            history: formattedHistory
+        });
+
+        // Odeslání zprávy do kontextového chatu
+        const result = await chat.sendMessage(`Respond in ${lang || 'en'}. User: ${message}`);
         const aiResponse = result.response.text();
 
         // Uložení historie
