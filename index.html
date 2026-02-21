@@ -291,21 +291,6 @@
             }
         }
 
-        // --- POMOCNÁ FUNKCE PRO MOST (Bridge) ---
-        function fillScannerFromChat(userMsg) {
-            // Zavře chat
-            toggleSupport();
-            
-            // Vyplní pole pro skenování tím, na co se uživatel ptal (AI už mu poradilo)
-            const scanInput = document.getElementById('scanQuery');
-            scanInput.value = userMsg;
-            
-            // Efektně na pole zaostří (scrollne a problikne)
-            scanInput.scrollIntoView({ behavior: "smooth", block: "center" });
-            scanInput.parentElement.classList.add('ring-2', 'ring-blue-500');
-            setTimeout(() => { scanInput.parentElement.classList.remove('ring-2', 'ring-blue-500'); }, 1000);
-        }
-
         // --- NOTIFICATIONS & CHART LOGIC ---
         let lastNotifiedId = null;
         let isFirstLoad = true;
