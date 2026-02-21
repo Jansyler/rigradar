@@ -8,39 +8,66 @@ const redis = new Redis({
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { query, stores, ownerEmail } = req.body;
-  
+  // 1. ZÍSKÁNÍ A OVĚŘENÍ RELACE PŘES NAŠI REDIS DATABÁZI
+  const authHeader = req.headers.authorization;
+  let verifiedEmail = null;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      verifiedEmail = await redis.get(`session:${token}`);
+  }
+
+  if (!verifiedEmail) {
+      return res.status(401).json({ error: "Unauthorized. Please log in." });
+  }
+
+  const { query, stores, ownerEmail, condition, minPrice, maxPrice } = req.body;
   if (!query) return res.status(400).json({ error: 'Query is required' });
 
-  // 1. Rate Limiting (Ochrana proti spamu - 2 requesty za 15s)
-  const ip = req.headers['x-forwarded-for'] || 'unknown_ip';
-  const rateLimitKey = `rate_limit:${ip}`;
+  // Bezpečnostní pojistka: uživatel může skenovat jen pod svým emailem
+  if (ownerEmail !== verifiedEmail) {
+      return res.status(403).json({ error: "Forbidden. Email mismatch." });
+  }
 
+  // 2. KONTROLA PREMIUM LIMITŮ
+  // Zjistíme z databáze, zda má uživatel zaplaceno Premium
+  const userData = await redis.get(`user_data:${verifiedEmail}`) || {};
+  const isPremium = userData.isPremium === true;
+
+  // Vyžádané obchody (pokud nevybere, dáme eBay)
+  const requestedStores = stores && stores.length > 0 ? stores : ['ebay'];
+
+  // Pokud NENÍ premium a chce skenovat Amazon nebo Alzu -> ZAMÍTNOUT
+  if (!isPremium) {
+      const premiumStores = ['amazon', 'alza'];
+      const wantsPremiumStore = requestedStores.some(store => premiumStores.includes(store.toLowerCase()));
+      
+      if (wantsPremiumStore) {
+          return res.status(403).json({ 
+              error: 'Amazon and Alza are available for Premium users only. Upgrade to access.' 
+          });
+      }
+  }
+
+  // 3. Odeslání do fronty (do Pythonu)
   try {
-    const requests = await redis.incr(rateLimitKey);
-    if (requests === 1) {
-        await redis.expire(rateLimitKey, 15);
-    }
-    if (requests > 2) {
-        return res.status(429).json({ error: 'Wait 15s before next scan!' });
-    }
-
-    // 2. Příprava dat pro Python (radar.py)
     const task = JSON.stringify({
       query: query,
-      stores: stores && stores.length > 0 ? stores : ['ebay'],
-      ownerEmail: ownerEmail || 'system',
+      stores: requestedStores,
+      ownerEmail: verifiedEmail,
+      condition: condition || 'any',
+      minPrice: minPrice || null,
+      maxPrice: maxPrice || null,
       timestamp: Date.now(),
-      priority: true,
+      priority: isPremium, // Premium uživatelé mají přednost ve frontě!
       source: 'user_request'
     });
 
-    // 3. Odeslání do fronty (OPRAVENO: používáme task, ne payload)
     await redis.rpush('scan_queue', task);
+    return res.status(200).json({ success: true, message: 'Scan queued successfully' });
 
-    return res.status(200).json({ success: true, message: 'Scan queued' });
   } catch (error) {
     console.error("Redis Error:", error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: "Database error." });
   }
 }
