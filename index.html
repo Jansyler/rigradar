@@ -50,15 +50,6 @@
         .msg-supp-ai { background: rgba(255, 255, 255, 0.1); border-radius: 12px 12px 12px 0; }
         .msg-supp-user { background: #2563eb; border-radius: 12px 12px 0 12px; }
 
-@keyframes ticker {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-        }
-        .ticker-wrapper { 
-            width: 200%; /* MUSÍ BÝT 200% PRO 2 BLOKY */
-            animation: ticker 40s linear infinite; 
-        }
-        .ticker-wrapper:hover { animation-play-state: paused; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen overflow-x-hidden">
@@ -86,24 +77,6 @@
                 </button>
             </div>
         </div>
-
-        <div class="w-screen relative left-1/2 -translate-x-1/2 bg-blue-600/5 border-y border-blue-500/20 py-4 overflow-hidden my-12 z-10">
-            <div class="ticker-wrapper font-mono text-sm text-blue-400 opacity-80 cursor-default flex items-center">
-                <div class="flex-none flex justify-around items-center px-4 w-1/2 min-w-max gap-16">
-                    <span>[NEW] NVIDIA RTX 4070 SUPER <span class="text-green-400 ml-2 font-bold">$589</span></span>
-                    <span>[PRICE DROP] AMD Ryzen 7 7800X3D <span class="text-green-400 ml-2 font-bold">$349</span></span>
-                    <span>[ALERT] GIGABYTE RTX 4080 <span class="text-green-400 ml-2 font-bold">$999</span></span>
-                    <span>[RESTOCK] ASUS B650E-F <span class="text-green-400 ml-2 font-bold">$210</span></span>
-                </div>
-                <div class="flex-none flex justify-around items-center px-4 w-1/2 min-w-max gap-16">
-                    <span>[NEW] NVIDIA RTX 4070 SUPER <span class="text-green-400 ml-2 font-bold">$589</span></span>
-                    <span>[PRICE DROP] AMD Ryzen 7 7800X3D <span class="text-green-400 ml-2 font-bold">$349</span></span>
-                    <span>[ALERT] GIGABYTE RTX 4080 <span class="text-green-400 ml-2 font-bold">$999</span></span>
-                    <span>[RESTOCK] ASUS B650E-F <span class="text-green-400 ml-2 font-bold">$210</span></span>
-                </div>
-            </div>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 xl:gap-10 w-full pt-8">
             
             <div class="glass-panel p-8 md:p-10 rounded-[40px] md:col-span-2 lg:col-span-1 flex flex-col justify-between relative overflow-hidden group cursor-pointer border-blue-500/30 hover:scale-[1.02] transition-transform min-h-[400px]" onclick="location.href='chat.html'">
