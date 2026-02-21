@@ -1,3 +1,14 @@
+// --- ZACHYCENÍ GITHUB LOGINU Z URL ---
+const urlParams = new URLSearchParams(window.location.search);
+const urlToken = urlParams.get('token');
+const urlEmail = urlParams.get('email');
+
+if (urlToken && urlEmail) {
+    localStorage.setItem('rr_auth_token', urlToken);
+    localStorage.setItem('rr_user_email', urlEmail);
+    // Vyčistíme URL, aby tam ten token nevisel veřejně
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
 // 1. Synchronizace Premium statusu se serverem
 async function syncPremiumStatus(token) {
     if (!token) token = localStorage.getItem('rr_auth_token');
