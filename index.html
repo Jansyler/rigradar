@@ -113,19 +113,19 @@
                     </div>
                 </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="grid grid-cols-2 gap-3">
                     <div class="glass-panel p-1 rounded-xl flex items-center ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all">
                         <span class="pl-4 text-gray-500">💰</span>
-                        <input type="number" id="min-price" placeholder="Min $" class="w-1/2 bg-transparent border-none text-white px-2 py-3 focus:outline-none placeholder-gray-600 text-sm text-center border-r border-white/5">
-                        <input type="number" id="max-price" placeholder="Max $" class="w-1/2 bg-transparent border-none text-white px-2 py-3 focus:outline-none placeholder-gray-600 text-sm text-center">
+                        <input type="number" id="max-price" placeholder="Max Price ($)" class="flex-grow bg-transparent border-none text-white px-3 py-3 focus:outline-none placeholder-gray-600 text-sm">
                     </div>
-                    
-                    <div class="glass-panel p-1.5 rounded-xl flex items-center gap-1 ring-1 ring-white/5">
-                        <span class="pl-2 pr-2 text-gray-500 hidden sm:inline">🏷️</span>
-                        <input type="hidden" id="condition-val" value="any">
-                        <button onclick="setCondition('any', this)" class="cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-blue-600/30 text-white border border-blue-500/50 transition-all shadow-[0_0_10px_rgba(37,99,235,0.2)]">ANY</button>
-                        <button onclick="setCondition('new', this)" class="cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent transition-all">NEW</button>
-                        <button onclick="setCondition('used', this)" class="cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent transition-all">USED</button>
+                    <div class="glass-panel p-1 rounded-xl flex items-center ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all relative">
+                        <span class="pl-4 text-gray-500">🏷️</span>
+                        <select id="condition" class="flex-grow bg-transparent border-none text-gray-400 px-3 py-3 focus:outline-none text-sm appearance-none cursor-pointer">
+                            <option value="any" class="bg-gray-900">Any Condition</option>
+                            <option value="new" class="bg-gray-900">New Only</option>
+                            <option value="used" class="bg-gray-900">Used Only</option>
+                        </select>
+                        <span class="absolute right-4 text-gray-600 pointer-events-none">▼</span>
                     </div>
                 </div>
             </div>
@@ -644,9 +644,8 @@ async function requestScan() {
             const query = document.getElementById('scanQuery').value;
             const customStore = document.getElementById('custom-store').value.trim();
             // PŘIDÁNO: Načtení filtrů
-            const minPrice = document.getElementById('min-price').value.trim(); 
             const maxPrice = document.getElementById('max-price').value.trim(); 
-            const condition = document.getElementById('condition-val').value;
+            const condition = document.getElementById('condition').value;
 
             const statusEl = document.getElementById('scanStatus');
             const btn = document.getElementById('scan-btn');
@@ -723,26 +722,11 @@ async function requestScan() {
             }
         }
 
-document.addEventListener('DOMContentLoaded', async () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             await loadLayout(); 
             initChart();
             await fetchLatestDeal();
             setInterval(fetchLatestDeal, 10000); 
-
-            // --- AI BRIDGE AUTO-START ---
-            const params = new URLSearchParams(window.location.search);
-            const autoScanQuery = params.get('scan');
-            if (autoScanQuery) {
-                const scanInput = document.getElementById('scanQuery');
-                scanInput.value = autoScanQuery;
-                scanInput.scrollIntoView({ behavior: "smooth", block: "center" });
-                
-                // Automaticky spustíme scan
-                setTimeout(() => { requestScan(); }, 800);
-                
-                // Vyčistíme URL, aby se to neopakovalo při refreshi
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
         });
     function openGuide() {
             const modal = document.getElementById('guide-modal');
@@ -788,15 +772,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }).catch(err => {
                 console.error('Failed to copy text: ', err);
             });
-        }
-    // --- LOGIKA PRO PŘEPÍNÁNÍ STAVU (Condition) ---
-        function setCondition(value, clickedBtn) {
-            document.getElementById('condition-val').value = value;
-            const buttons = document.querySelectorAll('.cond-btn');
-            buttons.forEach(btn => {
-                btn.className = "cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent transition-all";
-            });
-            clickedBtn.className = "cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-blue-600/30 text-white border border-blue-500/50 transition-all shadow-[0_0_10px_rgba(37,99,235,0.2)]";
         }
     </script>
 </body>
