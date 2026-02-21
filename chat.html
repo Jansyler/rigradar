@@ -3,215 +3,385 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RigRadar AI | Advisor</title>
+    <title>RigRadar AI | Workspace</title>
     <link rel="icon" type="image/png" href="logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap');
         body { background-color: #050505; color: white; font-family: 'Inter', sans-serif; padding-top: 64px; }
         
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
         
-        .msg-ai { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); }
+        .msg-ai { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(12px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .msg-user { background: #2563eb; }
         .active-chat { background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); color: white; }
+        .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
         
-        /* Sidebar Animace */
-        #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* Mobile Tab Active State */
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
     </style>
 </head>
 <body class="flex h-[calc(100vh-64px)] overflow-hidden relative">
 
-    <aside id="sidebar" class="fixed inset-y-0 left-0 w-[85%] md:w-64 bg-[#0a0a0a] border-r border-white/5 z-[101] transform -translate-x-full md:translate-x-0 md:static flex flex-col p-4 gap-4 transition-transform shadow-2xl md:shadow-none pt-20 md:pt-4">
-        
-        <div class="flex justify-between items-center md:hidden px-2 mb-2">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-[85%] md:w-64 bg-[#0a0a0a] border-r border-white/5 z-[101] transform -translate-x-full lg:translate-x-0 lg:static flex flex-col p-4 gap-4 transition-transform shadow-2xl lg:shadow-none pt-20 lg:pt-4">
+        <div class="flex justify-between items-center lg:hidden px-2 mb-2">
             <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">History</span>
             <button onclick="toggleSidebar()" class="text-gray-400 p-2 hover:text-white">✕</button>
         </div>
-
         <button onclick="startNewChat(); toggleSidebar()" class="w-full border border-white/10 bg-white/5 hover:bg-white/10 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 text-white">
             <span>+</span> New Chat
         </button>
-        
-        <div class="hidden md:block text-[10px] uppercase tracking-widest text-gray-600 font-bold mt-2 px-2">History</div>
-        <div id="chat-list" class="flex-1 overflow-y-auto space-y-2 text-sm text-gray-400 pb-20 md:pb-0">
-            </div>
+        <div class="hidden lg:block text-[10px] uppercase tracking-widest text-gray-600 font-bold mt-2 px-2">History</div>
+        <div id="chat-list" class="flex-1 overflow-y-auto space-y-2 text-sm text-gray-400 pb-20 lg:pb-0"></div>
     </aside>
-
-    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/80 z-[100] hidden md:hidden backdrop-blur-sm glass-panel"></div>
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/80 z-[100] hidden lg:hidden backdrop-blur-sm"></div>
 
     <main class="flex-1 flex flex-col relative bg-[#050505] w-full">
         
-        <div class="md:hidden absolute top-4 left-4 z-[101]">
-            <button onclick="toggleSidebar()" class="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 px-4 py-2 rounded-full text-xs font-bold text-gray-300 hover:bg-white/10 transition-all shadow-lg backdrop-blur-md">
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                History
-            </button>
+        <div class="md:hidden flex border-b border-white/10 bg-[#0a0a0a] z-50">
+            <button onclick="switchTab('chat')" id="tab-chat" class="flex-1 py-3 text-xs font-bold uppercase tracking-widest tab-active transition-all">💬 AI Advisor</button>
+            <button onclick="switchTab('radar')" id="tab-radar" class="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-gray-500 transition-all">📡 Radar</button>
         </div>
 
-        <div id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-4 pb-32 pt-16 md:pt-6"> 
-            <div class="msg-ai p-5 rounded-2xl rounded-tl-none max-w-[90%] md:max-w-[80%] text-gray-300 text-sm leading-relaxed" id="welcome-msg">
-                <div class="text-[10px] uppercase tracking-wider text-blue-500 font-bold mb-1">RigRadar AI</div>
-                Hello! I'm ready to build your dream computer rig. How can I help you?
-            </div>
-        </div>
-
-        <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent z-10">
-            <div class="max-w-3xl mx-auto flex gap-3 items-center">
-                <div class="flex-1 bg-[#151515] border border-white/10 rounded-2xl flex items-center px-4 py-1 shadow-xl ring-1 ring-white/5 focus-within:ring-blue-500/50 transition-all">
-                    <input type="text" id="user-input" autocomplete="off"
-                           onkeypress="if(event.key==='Enter') sendMessage()" 
-                           placeholder="Ask about RTX 4090..." 
-                           class="flex-1 bg-transparent outline-none text-white py-3 text-sm placeholder-gray-500">
-                </div>
-                <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 text-white p-3.5 rounded-xl transition-all shadow-lg active:scale-95 flex-shrink-0">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"></path></svg>
-                </button>
-            </div>
+        <div class="flex-1 flex flex-row overflow-hidden relative">
             
-            <button id="upgrade-btn" onclick="location.href='pricing.html'" class="hidden w-full text-center mt-3 text-[10px] text-blue-400 font-bold uppercase tracking-widest">
-                🔒 Query Limit Reached • Get Premium
-            </button>
+            <div id="view-chat" class="w-full md:w-1/2 h-full flex flex-col relative border-r border-white/5 transition-all">
+                <div class="lg:hidden absolute top-4 left-4 z-[50]">
+                    <button onclick="toggleSidebar()" class="bg-[#1a1a1a] border border-white/10 p-2 rounded-lg text-gray-400 hover:text-white shadow-lg">☰</button>
+                </div>
+                
+                <div id="chat-box" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 pb-32 pt-16 lg:pt-6"> 
+                    <div class="msg-ai p-5 rounded-2xl rounded-tl-none max-w-[90%] text-gray-300 text-sm leading-relaxed" id="welcome-msg">
+                        <div class="text-[10px] uppercase tracking-wider text-blue-500 font-bold mb-1">RigRadar AI</div>
+                        Hello! Let's find your perfect hardware. What are you building?
+                    </div>
+                </div>
+
+                <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent z-10">
+                    <div class="flex gap-2 items-center">
+                        <div class="flex-1 bg-[#151515] border border-white/10 rounded-xl flex items-center px-4 shadow-xl focus-within:ring-1 focus-within:ring-blue-500">
+                            <input type="text" id="user-input" autocomplete="off" onkeypress="if(event.key==='Enter') sendMessage()" placeholder="Ask AI..." class="flex-1 bg-transparent outline-none text-white py-3 text-sm placeholder-gray-500">
+                        </div>
+                        <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 text-white p-3.5 rounded-xl transition-all shadow-lg active:scale-95">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-radar" class="w-full md:w-1/2 h-full bg-[#0a0a0a] overflow-y-auto p-4 md:p-6 hidden md:flex flex-col space-y-6">
+                
+                <div class="glass-panel p-5 rounded-2xl space-y-4 shadow-xl">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest border-l-2 border-blue-500 pl-2">Market Scanner</h3>
+                    
+                    <div class="grid grid-cols-1 gap-3">
+                        <input type="text" id="scanQuery" placeholder="Product (e.g. RTX 4070)" class="w-full bg-black/50 border border-white/10 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
+                        <input type="text" id="custom-store" placeholder="Store (e.g. Amazon, eBay)" class="w-full bg-black/50 border border-white/10 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
+                        
+                        <div class="flex gap-2">
+                            <input type="number" id="min-price" placeholder="Min $" class="w-1/2 bg-black/50 border border-white/10 text-white px-3 py-3 rounded-xl focus:outline-none focus:border-blue-500 text-sm text-center">
+                            <input type="number" id="max-price" placeholder="Max $" class="w-1/2 bg-black/50 border border-white/10 text-white px-3 py-3 rounded-xl focus:outline-none focus:border-blue-500 text-sm text-center">
+                        </div>
+                    </div>
+                    
+                    <button onclick="requestScan()" id="scan-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all uppercase tracking-wider text-sm shadow-lg shadow-blue-900/20 active:scale-95">
+                        RUN RADAR SCAN 🚀
+                    </button>
+                    <div id="scanStatus" class="text-center text-xs font-mono h-4 text-gray-500 truncate"></div>
+                </div>
+
+                <div class="glass-panel p-5 rounded-2xl">
+                    <h3 id="chart-title" class="text-xs font-bold text-gray-500 uppercase tracking-widest border-l-2 border-blue-500 pl-2 mb-4">Price Trend</h3>
+                    <div class="w-full h-40">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="flex-1">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest border-l-2 border-blue-500 pl-2 mb-4">Your Recent Scans</h3>
+                    <div id="history-list" class="space-y-3">
+                        <div class="text-center text-xs text-gray-600 py-10 border border-white/5 rounded-xl border-dashed">No personal scans yet.</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
-    <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] bg-[#1a1a1a] border border-white/10 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
-        <span id="toast-icon" class="text-xl">⚠️</span>
-        <span id="toast-msg" class="text-sm font-medium">Notification</span>
+    <div id="detail-modal" class="fixed inset-0 z-[300] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-all opacity-0">
+        <div class="glass-panel w-full max-w-lg rounded-[32px] p-8 relative shadow-2xl transform scale-95 transition-all duration-300">
+            <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white text-2xl">✕</button>
+            <div id="modal-badge" class="inline-block px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] uppercase font-bold mb-4 tracking-widest">STORE</div>
+            <h2 id="modal-title" class="text-xl font-bold text-white leading-tight mb-2">---</h2>
+            <div id="modal-price" class="text-4xl font-black text-blue-500 tracking-tighter mb-6">$---</div>
+            <p id="modal-opinion" class="text-gray-400 italic text-sm mb-6 bg-black/30 p-4 rounded-xl border border-white/5">---</p>
+            <div class="flex gap-3">
+                <a id="modal-link" href="#" target="_blank" class="flex-grow bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl text-center uppercase text-sm tracking-wider transition-all">
+                    BUY NOW ↗
+                </a>
+            </div>
+        </div>
     </div>
 
     <div id="header-placeholder"></div>
 
     <script src="auth.js"></script>
     <script>
-        // --- UI LOGIC ---
+        // --- MOBILE TAB LOGIC ---
+        function switchTab(tab) {
+            const chatView = document.getElementById('view-chat');
+            const radarView = document.getElementById('view-radar');
+            const chatBtn = document.getElementById('tab-chat');
+            const radarBtn = document.getElementById('tab-radar');
+
+            if (tab === 'chat') {
+                chatView.classList.remove('hidden');
+                radarView.classList.add('hidden');
+                chatBtn.classList.add('tab-active');
+                chatBtn.classList.remove('text-gray-500');
+                radarBtn.classList.remove('tab-active');
+                radarBtn.classList.add('text-gray-500');
+            } else {
+                chatView.classList.add('hidden');
+                radarView.classList.remove('hidden');
+                radarView.classList.add('flex');
+                radarBtn.classList.add('tab-active');
+                radarBtn.classList.remove('text-gray-500');
+                chatBtn.classList.remove('tab-active');
+                chatBtn.classList.add('text-gray-500');
+            }
+        }
+        
+        // Na PC zobrazit vždy obojí
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 768) {
+                document.getElementById('view-chat').classList.remove('hidden');
+                document.getElementById('view-radar').classList.remove('hidden');
+                document.getElementById('view-radar').classList.add('flex');
+            } else {
+                switchTab('chat'); // Na mobilu reset na chat
+            }
+        });
+
+        // --- SIDEBAR LOGIC ---
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('sidebar-overlay');
-            const isClosed = sb.classList.contains('-translate-x-full');
-            
-            if (isClosed) {
-                sb.classList.remove('-translate-x-full'); // Otevřít
-                ov.classList.remove('hidden');
-                document.body.style.overflow = 'hidden';
+            if (sb.classList.contains('-translate-x-full')) {
+                sb.classList.remove('-translate-x-full'); ov.classList.remove('hidden');
             } else {
-                sb.classList.add('-translate-x-full'); // Zavřít
-                ov.classList.add('hidden');
-                document.body.style.overflow = 'auto';
+                sb.classList.add('-translate-x-full'); ov.classList.add('hidden');
             }
         }
 
-        // --- CHAT LOGIC ---
+        // --- AI CHAT LOGIC ---
         let activeChatId = null;
         let allChats = {};
-
-        async function loadSidebar() {
-            const email = localStorage.getItem('rr_user_email');
-            const token = localStorage.getItem('rr_auth_token'); // 1. Načtení tokenu
-            
-            if (!email || !token) return; // 2. Kontrola, zda jsme přihlášeni
-            
-            try {
-                // 3. Posíláme token v hlavičce
-                const res = await fetch(`/api/chat?email=${email}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                const data = await res.json();
-                allChats = data.chats || {};
-                const list = document.getElementById('chat-list');
-                list.innerHTML = '';
-                Object.keys(allChats).sort((a, b) => b.split('_')[1] - a.split('_')[1]).forEach(id => {
-                    const btn = document.createElement('button');
-                    btn.className = `w-full text-left p-3 rounded-lg hover:bg-white/5 truncate transition-all text-xs border border-transparent ${activeChatId === id ? 'active-chat' : 'border-transparent'}`;
-                    btn.innerText = allChats[id].title || "Conversation";
-                    btn.onclick = () => { switchChat(id); if(window.innerWidth < 768) toggleSidebar(); };
-                    list.appendChild(btn);
-                });
-            } catch (e) {}
-        }
-
-        function switchChat(id) {
-            activeChatId = id;
-            const chatBox = document.getElementById('chat-box');
-            chatBox.innerHTML = '';
-            if (allChats[id] && allChats[id].history) {
-                allChats[id].history.forEach(msg => {
-                    const isUser = msg.role === 'user';
-                    chatBox.innerHTML += `
-                        <div class="${isUser ? 'msg-user self-end ml-auto text-white' : 'msg-ai text-gray-300'} p-4 rounded-2xl ${isUser?'rounded-tr-none':'rounded-tl-none'} max-w-[85%] text-sm leading-relaxed mb-2 shadow-md">
-                            ${msg.text}
-                        </div>`;
-                });
-            }
-            chatBox.scrollTop = chatBox.scrollHeight;
-            loadSidebar();
-        }
-
-        function startNewChat() {
-            activeChatId = null;
-            document.getElementById('chat-box').innerHTML = `
-                <div class="msg-ai p-5 rounded-2xl rounded-tl-none max-w-[85%] text-gray-300 text-sm">
-                    <div class="text-[10px] uppercase tracking-wider text-blue-500 font-bold mb-1">RigRadar AI</div>
-                    Ready. What are we hunting for today?
-                </div>`;
-            loadSidebar();
-        }
 
         async function sendMessage() {
             const input = document.getElementById('user-input');
             const email = localStorage.getItem('rr_user_email');
-            const token = localStorage.getItem('rr_auth_token'); // 1. Načtení tokenu
-            const message = input.value;
-            
+            const token = localStorage.getItem('rr_auth_token');
+            const message = input.value.trim();
             if(!message) return;
-            
-            if(!email || !token) { // 2. Kontrola
-                if(typeof showToast === 'function') showToast("Please log in first!", "info");
-                else alert("Please log in first!");
-                return;
-            }
+            if(!email || !token) { alert("Please log in first!"); return; }
 
             const chatBox = document.getElementById('chat-box');
             chatBox.innerHTML += `<div class="msg-user p-4 rounded-2xl rounded-tr-none max-w-[85%] self-end ml-auto text-white text-sm shadow-md mb-2">${message}</div>`;
             input.value = '';
             chatBox.scrollTop = chatBox.scrollHeight;
 
+            const typingId = "typing-" + Date.now();
+            chatBox.innerHTML += `<div id="${typingId}" class="msg-ai p-3 text-blue-400 text-xs animate-pulse inline-block rounded-lg mb-2">Analyzing data...</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST', 
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // 3. Token pro backend
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ message, email, chatId: activeChatId, lang: 'en' })
                 });
                 const data = await response.json();
+                document.getElementById(typingId).remove();
                 
-                if (response.status === 403) {
-                    document.getElementById('upgrade-btn').classList.remove('hidden');
-                    if(typeof showToast === 'function') showToast(data.text, "error");
-                } else if (response.status === 401) {
-                    if(typeof showToast === 'function') showToast("Session expired. Login again.", "error");
-                    else alert("Session expired");
-                } else {
+                if (response.ok) {
                     if (!activeChatId && data.chatId) activeChatId = data.chatId;
-                    chatBox.innerHTML += `<div class="msg-ai p-4 rounded-2xl rounded-tl-none max-w-[85%] text-gray-300 text-sm mt-2 leading-relaxed border border-white/5 shadow-sm">${data.text}</div>`;
-                    await loadSidebar();
+                    
+                    // --- THE INSTANT BRIDGE ---
+                    const scanTerm = message.replace(/[?!.]/g, '').trim(); 
+                    
+                    chatBox.innerHTML += `
+                        <div class="msg-ai p-4 rounded-2xl rounded-tl-none max-w-[85%] text-gray-300 text-sm mt-2 leading-relaxed flex flex-col gap-3">
+                            <span>${data.text}</span>
+                            <button onclick="bridgeToRadar('${scanTerm}')" class="bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/50 font-bold py-2 rounded-lg uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 group">
+                                🚀 Instant Scan for "${scanTerm}"
+                            </button>
+                        </div>`;
+                } else {
+                    chatBox.innerHTML += `<div class="msg-ai p-3 text-red-400 text-xs">${data.text || "Error"}</div>`;
                 }
                 chatBox.scrollTop = chatBox.scrollHeight;
             } catch (e) {
-                if(typeof showToast === 'function') showToast("Connection error", "error");
+                document.getElementById(typingId).remove();
             }
         }
 
+        // --- BRIDGE FUNCTION ---
+        function bridgeToRadar(term) {
+            // Přepne na mobilu tab na Radar
+            if(window.innerWidth < 768) switchTab('radar');
+            
+            // Vyplní pole a spustí sken
+            const input = document.getElementById('scanQuery');
+            input.value = term;
+            input.scrollIntoView({ behavior: 'smooth' });
+            
+            // Efekt probliknutí a spuštění
+            input.parentElement.classList.add('ring-2', 'ring-blue-500');
+            setTimeout(() => { 
+                input.parentElement.classList.remove('ring-2', 'ring-blue-500'); 
+                requestScan(); 
+            }, 800);
+        }
 
-        document.addEventListener('DOMContentLoaded', loadLayout);
+        // --- RADAR LOGIC ---
+        async function requestScan() {
+            const query = document.getElementById('scanQuery').value;
+            const customStore = document.getElementById('custom-store').value.trim();
+            const minPrice = document.getElementById('min-price').value.trim();
+            const maxPrice = document.getElementById('max-price').value.trim();
+            const statusEl = document.getElementById('scanStatus');
+            const btn = document.getElementById('scan-btn');
+            const userEmail = localStorage.getItem('rr_user_email'); 
+
+            if(!query) { statusEl.innerText = "⚠️ Enter product name"; return; }
+            
+            btn.disabled = true;
+            statusEl.className = "text-center text-xs font-mono h-4 text-blue-400 animate-pulse";
+            
+            const moodMessages = ["> Initializing...", "> Bypassing protection...", "> Analyzing AI data...", "> Extracting price..."];
+            let moodIndex = 0;
+            statusEl.innerText = moodMessages[0];
+            const moodInterval = setInterval(() => {
+                moodIndex++; if (moodIndex < moodMessages.length) statusEl.innerText = moodMessages[moodIndex];
+            }, 1800);
+
+            try {
+                const response = await fetch('/api/request_scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: query, stores: customStore ? [customStore] : ['ebay'],
+                        ownerEmail: userEmail || 'system', minPrice, maxPrice
+                    })
+                });
+
+                clearInterval(moodInterval);
+                if (response.ok) {
+                    statusEl.innerText = `✅ Satellite deployed! Check history in a moment.`;
+                    statusEl.className = "text-center text-xs font-mono h-4 text-green-500";
+                    setTimeout(fetchLatestDeal, 5000); // Zkusí načíst výsledek po 5s
+                } else {
+                    statusEl.innerText = `⚠️ Limit reached or Error.`;
+                    statusEl.className = "text-center text-xs font-mono h-4 text-red-400";
+                }
+            } catch (e) { 
+                clearInterval(moodInterval);
+                statusEl.innerText = "❌ Connection error"; 
+                statusEl.className = "text-center text-xs font-mono h-4 text-red-500";
+            } finally { 
+                setTimeout(() => { btn.disabled = false; statusEl.innerText = ""; }, 4000); 
+            }
+        }
+
+        // --- FETCH RESULTS & CHART ---
+        let priceChartInstance = null;
+        function initChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 150);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)'); gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+            priceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Price', data: [], borderColor: '#3b82f6', backgroundColor: gradient, fill: true, tension: 0.3 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { color: '#666' }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+        }
+
+        async function fetchLatestDeal() {
+            try {
+                const userEmail = localStorage.getItem('rr_user_email');
+                if(!userEmail) return;
+                const res = await fetch(`/api/update_price?user=${userEmail}`);
+                const data = await res.json();
+                
+                // Vykreslení historie
+                if (data.history && Array.isArray(data.history)) {
+                    const list = document.getElementById('history-list');
+                    let htmlContent = '';
+                    const chartPrices = [];
+                    const chartLabels = [];
+
+                    data.history.slice(0, 5).forEach(deal => {
+                        let listPrice = deal.price || "---";
+                        if(listPrice.includes(":")) listPrice = listPrice.split(":")[1].trim();
+                        
+                        // Data pro graf
+                        const p = parseFloat(listPrice.replace(/[^0-9.]/g, ''));
+                        if (!isNaN(p)) { chartPrices.push(p); chartLabels.push(''); }
+
+                        const dealEscaped = encodeURIComponent(JSON.stringify(deal)).replace(/'/g, "%27");
+                        htmlContent += `
+                            <div onclick="openDetail('${dealEscaped}')" class="glass-panel p-4 rounded-xl cursor-pointer hover:border-blue-500/30 transition-all border border-white/5">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[10px] text-blue-400 font-bold uppercase">${deal.store || 'WEB'}</span>
+                                    <span class="text-sm font-black text-white">${listPrice}</span>
+                                </div>
+                                <h3 class="text-gray-300 text-xs truncate">${deal.title || 'Product'}</h3>
+                            </div>`;
+                    });
+                    if (htmlContent) list.innerHTML = htmlContent;
+
+                    // Update Grafu
+                    if (chartPrices.length > 0 && priceChartInstance) {
+                        priceChartInstance.data.datasets[0].data = chartPrices.reverse();
+                        priceChartInstance.data.labels = chartLabels;
+                        priceChartInstance.update();
+                        document.getElementById('chart-title').innerText = data.history[0].title.split(' ').slice(0, 4).join(' ');
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function openDetail(dealDataEscaped) {
+            const deal = JSON.parse(decodeURIComponent(dealDataEscaped));
+            const modal = document.getElementById('detail-modal');
+            document.getElementById('modal-title').innerText = deal.title || "Detail";
+            document.getElementById('modal-price').innerText = deal.price || "---";
+            document.getElementById('modal-opinion').innerText = deal.opinion || "No analysis.";
+            document.getElementById('modal-badge').innerText = (deal.store || "WEB").toUpperCase();
+            
+            const link = document.getElementById('modal-link');
+            const productUrl = deal.url || deal.link || "#";
+            if (productUrl !== "#") { link.href = productUrl; link.classList.remove('hidden'); } else { link.classList.add('hidden'); }
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('detail-modal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLayout();
+            initChart();
+            fetchLatestDeal();
+            setInterval(fetchLatestDeal, 15000); // Aktualizace každých 15s
+        });
     </script>
 </body>
 </html>
