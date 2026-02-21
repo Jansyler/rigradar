@@ -52,9 +52,12 @@
 
 @keyframes ticker {
             0% { transform: translateX(0); }
-            100% 
+            100% { transform: translateX(-50%); }
         }
-        .ticker-wrapper { width: 3000%; display: flex; animation: ticker 40s linear infinite; }
+        .ticker-wrapper { 
+            width: 200%; /* MUSÍ BÝT 200% PRO 2 BLOKY */
+            animation: ticker 40s linear infinite; 
+        }
         .ticker-wrapper:hover { animation-play-state: paused; }
     </style>
 </head>
@@ -62,8 +65,7 @@
 <div id="notification-container" class="fixed top-5 right-5 z-[1000] flex flex-col gap-3 pointer-events-none"></div>
 
     <div id="header-placeholder"></div>
-<main class="flex-grow flex flex-col items-center justify-start px-4 pt-24 pb-20 w-full max-w-7xl mx-auto space-y-12 overflow-hidden">
-
+<main class="flex-grow flex flex-col items-center justify-start px-4 pt-8 pb-20 w-full max-w-[1400px] mx-auto space-y-12 overflow-hidden">
         <div class="text-center space-y-6 max-w-4xl mx-auto mt-4">
             <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 font-mono text-[10px] md:text-xs uppercase tracking-widest animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.2)]">
                 <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -83,14 +85,22 @@
             </div>
         </div>
 
-        <div class="w-screen relative left-1/2 -translate-x-1/2 bg-blue-600/5 border-y border-blue-500/20 py-3 flex whitespace-nowrap mt-8">
-            <div class="animate-[ticker_30s_linear_infinite] flex items-center gap-8 px-4 font-mono text-xs text-blue-400 opacity-80" id="ticker-content">
-                <span>[NEW] NVIDIA RTX 4070 SUPER <span class="text-green-400 ml-2 font-bold">$589</span></span> •
-                <span>[PRICE DROP] AMD Ryzen 7 7800X3D <span class="text-green-400 ml-2 font-bold">$349</span></span> •
-                <span>[ALERT] GIGABYTE RTX 4080 <span class="text-green-400 ml-2 font-bold">$999</span></span> •
-                <span>[RESTOCK] ASUS B650E-F <span class="text-green-400 ml-2 font-bold">$210</span></span>
-            </div>
+<div class="w-full bg-blue-600/5 border-y border-blue-500/20 py-3 overflow-hidden mt-20 z-10 relative">
+    <div class="ticker-wrapper font-mono text-xs text-blue-400 opacity-80 cursor-default flex items-center">
+        <div class="flex-none flex justify-around items-center px-4 w-1/2 min-w-max gap-12">
+            <span>[NEW] NVIDIA RTX 4070 SUPER <span class="text-green-400 ml-2 font-bold">$589</span></span>
+            <span>[PRICE DROP] AMD Ryzen 7 7800X3D <span class="text-green-400 ml-2 font-bold">$349</span></span>
+            <span>[ALERT] GIGABYTE RTX 4080 <span class="text-green-400 ml-2 font-bold">$999</span></span>
+            <span>[RESTOCK] ASUS B650E-F <span class="text-green-400 ml-2 font-bold">$210</span></span>
         </div>
+        <div class="flex-none flex justify-around items-center px-4 w-1/2 min-w-max gap-12">
+            <span>[NEW] NVIDIA RTX 4070 SUPER <span class="text-green-400 ml-2 font-bold">$589</span></span>
+            <span>[PRICE DROP] AMD Ryzen 7 7800X3D <span class="text-green-400 ml-2 font-bold">$349</span></span>
+            <span>[ALERT] GIGABYTE RTX 4080 <span class="text-green-400 ml-2 font-bold">$999</span></span>
+            <span>[RESTOCK] ASUS B650E-F <span class="text-green-400 ml-2 font-bold">$210</span></span>
+        </div>
+    </div>
+</div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full pt-4">
             
