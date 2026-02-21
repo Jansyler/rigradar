@@ -448,13 +448,13 @@ function checkNotifications(deal) {
 
                     // --- UPDATE GRAFU ---
                     if (priceChartInstance && data.history) {
-                        const searchQuery = document.getElementById('scanQuery').value.trim().toLowerCase();
                         const activeTitle = data.latest.title || "Unknown Product";
                         
                         const chartTitleEl = document.getElementById('chart-title');
                         if(chartTitleEl) chartTitleEl.innerText = activeTitle.split(' ').slice(0, 6).join(' ');
 
-                        const keywords = searchQuery ? searchQuery : activeTitle.split(' ').slice(0, 2).join(' ').toLowerCase();
+                        // Automaticky filtrujeme podle názvu posledního produktu (protože input už tu není)
+                        const keywords = activeTitle.split(' ').slice(0, 2).join(' ').toLowerCase();
                         const allDeals = [data.latest, ...data.history];
                         
                         const relevantDeals = allDeals.filter(d => d.title && d.title.toLowerCase().includes(keywords));
