@@ -312,6 +312,7 @@
         }
 
         async function fetchLatestDeal() {
+            if (document.hidden) return;
             try {
                 const userEmail = localStorage.getItem('rr_user_email');
                 if(!userEmail) return;
