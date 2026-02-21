@@ -1,12 +1,18 @@
-// --- ZACHYCENÍ GITHUB LOGINU Z URL ---
+// --- ZACHYCENÍ GITHUB LOGINU Z URL v auth.js ---
 const urlParams = new URLSearchParams(window.location.search);
 const urlToken = urlParams.get('token');
 const urlEmail = urlParams.get('email');
+const urlPic = urlParams.get('pic'); // PŘIDÁNO: zachycení fotky
 
 if (urlToken && urlEmail) {
     localStorage.setItem('rr_auth_token', urlToken);
     localStorage.setItem('rr_user_email', urlEmail);
-    // Vyčistíme URL, aby tam ten token nevisel veřejně
+    
+    // Pokud v URL přišla i fotka, uložíme ji
+    if (urlPic) {
+        localStorage.setItem('rr_user_pic', urlPic);
+    }
+    
     window.history.replaceState({}, document.title, window.location.pathname);
 }
 // 1. Synchronizace Premium statusu se serverem
