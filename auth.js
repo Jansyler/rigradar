@@ -156,12 +156,6 @@ function hideBanner() { const b = document.getElementById('cookie-banner'); if(b
 function declineCookies() { alert("You must accept the Terms of Service."); window.location.href = 'index.html'; }
 function loginWithGoogle() { 
     if (typeof google === 'undefined') {
-        if(typeof showToast === 'function') showToast("Connecting to Google... please wait a second.", "info");
-        return; 
-    }
-    
-function loginWithGoogle() { 
-    if (typeof google === 'undefined') {
         if(typeof showToast === 'function') showToast("Connecting to Google...", "info");
         return; 
     }
@@ -190,7 +184,6 @@ function initGoogleAuth() {
         setTimeout(() => banner.classList.remove('translate-y-20', 'opacity-0'), 100);
     }
 }
-
 // 10. CENTRALIZOVANÉ NAČÍTÁNÍ LAYOUTU (Header & Footer)
 async function loadLayout() {
     try {
