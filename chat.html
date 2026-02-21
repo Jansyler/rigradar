@@ -234,6 +234,7 @@
                         <div class="msg-ai p-4 rounded-2xl rounded-tl-none max-w-[85%] text-gray-300 text-sm mt-2 leading-relaxed">
                             ${data.text}
                         </div>`;
+                    loadSidebar();
                 } else {
                     chatBox.innerHTML += `<div class="msg-ai p-3 text-red-400 text-xs">${data.text || "Error"}</div>`;
                 }
