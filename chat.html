@@ -138,7 +138,7 @@
 
     <div id="header-placeholder"></div>
 
-    <script src="auth.js"></script>
+<script src="auth.js"></script>
     <script>
         // --- MOBILE TAB LOGIC ---
         function switchTab(tab) {
@@ -148,20 +148,13 @@
             const radarBtn = document.getElementById('tab-radar');
 
             if (tab === 'chat') {
-                chatView.classList.remove('hidden');
-                radarView.classList.add('hidden');
-                chatBtn.classList.add('tab-active');
-                chatBtn.classList.remove('text-gray-500');
-                radarBtn.classList.remove('tab-active');
-                radarBtn.classList.add('text-gray-500');
+                chatView.classList.remove('hidden'); radarView.classList.add('hidden');
+                chatBtn.classList.add('tab-active'); chatBtn.classList.remove('text-gray-500');
+                radarBtn.classList.remove('tab-active'); radarBtn.classList.add('text-gray-500');
             } else {
-                chatView.classList.add('hidden');
-                radarView.classList.remove('hidden');
-                radarView.classList.add('flex');
-                radarBtn.classList.add('tab-active');
-                radarBtn.classList.remove('text-gray-500');
-                chatBtn.classList.remove('tab-active');
-                chatBtn.classList.add('text-gray-500');
+                chatView.classList.add('hidden'); radarView.classList.remove('hidden'); radarView.classList.add('flex');
+                radarBtn.classList.add('tab-active'); radarBtn.classList.remove('text-gray-500');
+                chatBtn.classList.remove('tab-active'); chatBtn.classList.add('text-gray-500');
             }
         }
         
@@ -175,7 +168,6 @@
             }
         });
 
-        // --- SIDEBAR LOGIC ---
         function toggleSidebar() {
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('sidebar-overlay');
@@ -186,7 +178,6 @@
             }
         }
 
-        // --- LOGIKA PRO PŘEPÍNÁNÍ STAVU ---
         function setCondition(value, clickedBtn) {
             document.getElementById('condition-val').value = value;
             const buttons = document.querySelectorAll('.cond-btn');
@@ -229,12 +220,13 @@
                 if (response.ok) {
                     if (!activeChatId && data.chatId) activeChatId = data.chatId;
                     
-                    // Jednoduché vypsání zprávy z AI bez Bridge tlačítka
                     chatBox.innerHTML += `
                         <div class="msg-ai p-4 rounded-2xl rounded-tl-none max-w-[85%] text-gray-300 text-sm mt-2 leading-relaxed">
                             ${data.text}
                         </div>`;
-                    loadSidebar();
+                        
+                    // 🔴 TADY JE TA OPRAVA 1: Aktualizuje panel historie po odeslání zprávy
+                    loadSidebar(); 
                 } else {
                     chatBox.innerHTML += `<div class="msg-ai p-3 text-red-400 text-xs">${data.text || "Error"}</div>`;
                 }
@@ -250,7 +242,7 @@
             const customStore = document.getElementById('custom-store').value.trim();
             const minPrice = document.getElementById('min-price').value.trim();
             const maxPrice = document.getElementById('max-price').value.trim();
-            const condition = document.getElementById('condition-val').value; // OPRAVENO: přidáno načtení stavu
+            const condition = document.getElementById('condition-val').value;
             const statusEl = document.getElementById('scanStatus');
             const btn = document.getElementById('scan-btn');
             const userEmail = localStorage.getItem('rr_user_email'); 
@@ -275,9 +267,7 @@
                         query: query, 
                         stores: customStore ? [customStore] : ['ebay'],
                         ownerEmail: userEmail || 'system', 
-                        minPrice, 
-                        maxPrice, 
-                        condition
+                        minPrice, maxPrice, condition
                     })
                 });
 
@@ -285,7 +275,7 @@
                 if (response.ok) {
                     statusEl.innerText = `✅ Satellite deployed! Check history in a moment.`;
                     statusEl.className = "text-center text-xs font-mono h-4 text-green-500";
-                    setTimeout(fetchLatestDeal, 5000); // Zkusí načíst výsledek po 5s
+                    setTimeout(fetchLatestDeal, 5000);
                 } else {
                     statusEl.innerText = `⚠️ Limit reached or Error.`;
                     statusEl.className = "text-center text-xs font-mono h-4 text-red-400";
@@ -313,7 +303,9 @@
         }
 
         async function fetchLatestDeal() {
-            if (document.hidden) return;
+            // 🔴 TADY JE OCHRANA VERCEL LIMITŮ
+            if (document.hidden) return; 
+
             try {
                 const userEmail = localStorage.getItem('rr_user_email');
                 if(!userEmail) return;
@@ -377,15 +369,17 @@
             setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
-document.addEventListener('DOMContentLoaded', async () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             loadLayout();
             initChart();
             fetchLatestDeal();
             setInterval(fetchLatestDeal, 15000); 
             
-            // --- TOTO CHYBĚLO: Načte historii z databáze hned po startu! ---
+            // 🔴 TADY JE TA OPRAVA 2: Načte historii hned po startu stránky
             await loadSidebar(); 
         });
     </script>
+</body>
+</html>
 </body>
 </html>
