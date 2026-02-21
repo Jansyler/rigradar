@@ -84,7 +84,7 @@ function updateAuthUI(retryCount = 0) {
             <div class="w-[1px] h-3 bg-white/10 mx-0.5"></div>
             <button onclick="logout()" class="text-gray-500 hover:text-red-500 text-[9px] font-black px-1 transition-colors" title="Log Out">✕</button>
         </div>
-    ` : ... `<button onclick="window.location.href='login.html'" class="text-white text-xs font-bold border border-white/20 px-6 py-2 rounded-xl bg-[#111] hover:bg-white/10 transition-all">Log In</button>`;
+    ` : `<button onclick="window.location.href='login.html'" class="text-white text-xs font-bold border border-white/20 px-6 py-2 rounded-xl bg-[#111] hover:bg-white/10 transition-all">Log In</button>`;
 
     if (desktopAuth) desktopAuth.innerHTML = userHtml;
 
