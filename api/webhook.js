@@ -49,23 +49,13 @@ export default async function handler(req, res) {
 
             // 🟢 AKTIVACE PREMIUM (Při zaplacení)
             if (event.type === 'checkout.session.completed' || event.type === 'invoice.paid') {
-                // Odstraněno "count: 0", protože limity už řešíme atomicky jinde
-                let userData = await redis.get(userKey) || { isPremium: false, chats: {} };
-                
-                userData.isPremium = true;
-                userData.stripeCustomerId = stripeObject.customer; 
-                
-                await redis.set(userKey, userData);
+                await redis.set(`premium:${email}`, { isActive: true, customerId: stripeObject.customer });
                 console.log(`✅ PREMIUM ACTIVATED: ${email}`);
             }
 
             // 🔴 ZRUŠENÍ PREMIUM (Při smazání předplatného)
             if (event.type === 'customer.subscription.deleted') {
-                let userData = await redis.get(userKey) || { isPremium: false, chats: {} };
-                
-                userData.isPremium = false;
-                
-                await redis.set(userKey, userData);
+                await redis.del(`premium:${email}`);
                 console.log(`❌ PREMIUM CANCELED: ${email}`);
             }
         } else {
