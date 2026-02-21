@@ -1,143 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RigRadar AI | Workspace</title>
-    <link rel="icon" type="image/png" href="logo.png">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap');
-        body { background-color: #050505; color: white; font-family: 'Inter', sans-serif; padding-top: 64px; }
-        
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-        
-        .msg-ai { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(12px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .msg-user { background: #2563eb; }
-        .active-chat { background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); color: white; }
-        .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        
-        /* Mobile Tab Active State */
-        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; }
-    </style>
-</head>
-<body class="flex h-[calc(100vh-64px)] overflow-hidden relative">
-
-    <aside id="sidebar" class="fixed inset-y-0 left-0 w-[85%] md:w-64 bg-[#0a0a0a] border-r border-white/5 z-[101] transform -translate-x-full lg:translate-x-0 lg:static flex flex-col p-4 gap-4 transition-transform shadow-2xl lg:shadow-none pt-20 lg:pt-4">
-        <div class="flex justify-between items-center lg:hidden px-2 mb-2">
-            <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">History</span>
-            <button onclick="toggleSidebar()" class="text-gray-400 p-2 hover:text-white">✕</button>
-        </div>
-        <button onclick="startNewChat(); toggleSidebar()" class="w-full border border-white/10 bg-white/5 hover:bg-white/10 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 text-white">
-            <span>+</span> New Chat
-        </button>
-        <div class="hidden lg:block text-[10px] uppercase tracking-widest text-gray-600 font-bold mt-2 px-2">History</div>
-        <div id="chat-list" class="flex-1 overflow-y-auto space-y-2 text-sm text-gray-400 pb-20 lg:pb-0"></div>
-    </aside>
-    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/80 z-[100] hidden lg:hidden backdrop-blur-sm"></div>
-
-    <main class="flex-1 flex flex-col relative bg-[#050505] w-full">
-        
-        <div class="md:hidden flex border-b border-white/10 bg-[#0a0a0a] z-50">
-            <button onclick="switchTab('chat')" id="tab-chat" class="flex-1 py-3 text-xs font-bold uppercase tracking-widest tab-active transition-all">💬 AI Advisor</button>
-            <button onclick="switchTab('radar')" id="tab-radar" class="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-gray-500 transition-all">📡 Radar</button>
-        </div>
-
-        <div class="flex-1 flex flex-row overflow-hidden relative">
-            
-            <div id="view-chat" class="w-full md:w-1/2 h-full flex flex-col relative border-r border-white/5 transition-all">
-                <div class="lg:hidden absolute top-4 left-4 z-[50]">
-                    <button onclick="toggleSidebar()" class="bg-[#1a1a1a] border border-white/10 p-2 rounded-lg text-gray-400 hover:text-white shadow-lg">☰</button>
-                </div>
-                
-                <div id="chat-box" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 pb-32 pt-16 lg:pt-6"> 
-                    <div class="msg-ai p-5 rounded-2xl rounded-tl-none max-w-[90%] text-gray-300 text-sm leading-relaxed" id="welcome-msg">
-                        <div class="text-[10px] uppercase tracking-wider text-blue-500 font-bold mb-1">RigRadar AI</div>
-                        Hello! Let's find your perfect hardware. What are you building?
-                    </div>
-                </div>
-
-                <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent z-10">
-                    <div class="flex gap-2 items-center">
-                        <div class="flex-1 bg-[#151515] border border-white/10 rounded-xl flex items-center px-4 shadow-xl focus-within:ring-1 focus-within:ring-blue-500">
-                            <input type="text" id="user-input" autocomplete="off" onkeypress="if(event.key==='Enter') sendMessage()" placeholder="Ask AI..." class="flex-1 bg-transparent outline-none text-white py-3 text-sm placeholder-gray-500">
-                        </div>
-                        <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 text-white p-3.5 rounded-xl transition-all shadow-lg active:scale-95">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"></path></svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-radar" class="w-full md:w-1/2 h-full bg-[#0a0a0a] overflow-y-auto p-4 md:p-6 hidden md:flex flex-col space-y-6">
-                
-                <div class="glass-panel p-5 rounded-2xl space-y-4 shadow-xl">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest border-l-2 border-blue-500 pl-2">Market Scanner</h3>
-                    
-                    <div class="flex flex-col gap-3">
-                        <div class="grid grid-cols-1 gap-2">
-                            <input type="text" id="scanQuery" placeholder="Product (e.g. RTX 4070)" class="w-full bg-black/50 border border-white/10 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
-                            <input type="text" id="custom-store" placeholder="Store (e.g. Amazon, eBay)" class="w-full bg-black/50 border border-white/10 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
-                        </div>
-                        
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                            <div class="flex bg-black/50 border border-white/10 rounded-xl overflow-hidden focus-within:border-blue-500 transition-all">
-                                <input type="number" id="min-price" placeholder="Min $" class="w-1/2 bg-transparent text-white px-3 py-3 focus:outline-none text-sm text-center border-r border-white/10">
-                                <input type="number" id="max-price" placeholder="Max $" class="w-1/2 bg-transparent text-white px-3 py-3 focus:outline-none text-sm text-center">
-                            </div>
-                            
-                            <div class="bg-black/50 border border-white/10 p-1 rounded-xl flex gap-1 relative">
-                                <input type="hidden" id="condition-val" value="any">
-                                <button onclick="setCondition('any', this)" class="cond-btn flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg bg-blue-600/30 text-white border border-blue-500/50 transition-all shadow-[0_0_10px_rgba(37,99,235,0.2)]">ANY</button>
-                                <button onclick="setCondition('new', this)" class="cond-btn flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg bg-transparent text-gray-500 hover:text-gray-300 transition-all border border-transparent">NEW</button>
-                                <button onclick="setCondition('used', this)" class="cond-btn flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg bg-transparent text-gray-500 hover:text-gray-300 transition-all border border-transparent">USED</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button onclick="requestScan()" id="scan-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all uppercase tracking-wider text-sm shadow-lg shadow-blue-900/20 active:scale-95">
-                        RUN RADAR SCAN 🚀
-                    </button>
-                    <div id="scanStatus" class="text-center text-xs font-mono h-4 text-gray-500 truncate"></div>
-                </div>
-
-                <div class="glass-panel p-5 rounded-2xl">
-                    <h3 id="chart-title" class="text-xs font-bold text-gray-500 uppercase tracking-widest border-l-2 border-blue-500 pl-2 mb-4">Price Trend</h3>
-                    <div class="w-full h-40">
-                        <canvas id="priceChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="flex-1">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest border-l-2 border-blue-500 pl-2 mb-4">Your Recent Scans</h3>
-                    <div id="history-list" class="space-y-3">
-                        <div class="text-center text-xs text-gray-600 py-10 border border-white/5 rounded-xl border-dashed">No personal scans yet.</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <div id="detail-modal" class="fixed inset-0 z-[300] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-all opacity-0">
-        <div class="glass-panel w-full max-w-lg rounded-[32px] p-8 relative shadow-2xl transform scale-95 transition-all duration-300">
-            <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white text-2xl">✕</button>
-            <div id="modal-badge" class="inline-block px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] uppercase font-bold mb-4 tracking-widest">STORE</div>
-            <h2 id="modal-title" class="text-xl font-bold text-white leading-tight mb-2">---</h2>
-            <div id="modal-price" class="text-4xl font-black text-blue-500 tracking-tighter mb-6">$---</div>
-            <p id="modal-opinion" class="text-gray-400 italic text-sm mb-6 bg-black/30 p-4 rounded-xl border border-white/5">---</p>
-            <div class="flex gap-3">
-                <a id="modal-link" href="#" target="_blank" class="flex-grow bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl text-center uppercase text-sm tracking-wider transition-all">
-                    BUY NOW ↗
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <div id="header-placeholder"></div>
-
 <script src="auth.js"></script>
     <script>
         // --- MOBILE TAB LOGIC ---
@@ -187,9 +47,71 @@
             clickedBtn.className = "cond-btn flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg bg-blue-600/30 text-white border border-blue-500/50 transition-all shadow-[0_0_10px_rgba(37,99,235,0.2)]";
         }
 
-        // --- AI CHAT LOGIC ---
+        // ==========================================
+        // 🔴 CHÝBAJÚCE FUNKCIE PRE HISTÓRIU A CHATY
+        // ==========================================
         let activeChatId = null;
         let allChats = {};
+
+        async function loadSidebar() {
+            const email = localStorage.getItem('rr_user_email');
+            const token = localStorage.getItem('rr_auth_token');
+            if (!email || !token) return;
+
+            try {
+                const res = await fetch('/api/chat', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                allChats = data.chats || {};
+                
+                const list = document.getElementById('chat-list');
+                list.innerHTML = '';
+                
+                Object.keys(allChats).sort((a, b) => {
+                    const timeA = parseInt(a.split('_')[1]) || 0;
+                    const timeB = parseInt(b.split('_')[1]) || 0;
+                    return timeB - timeA; // Zoraďuje od najnovšieho po najstaršie
+                }).forEach(id => {
+                    const btn = document.createElement('button');
+                    btn.className = `w-full text-left p-3 rounded-lg hover:bg-white/5 truncate transition-all text-xs border border-transparent ${activeChatId === id ? 'active-chat' : 'border-transparent'}`;
+                    btn.innerText = allChats[id].title || "Conversation";
+                    btn.onclick = () => { switchChat(id); if(window.innerWidth < 768) toggleSidebar(); };
+                    list.appendChild(btn);
+                });
+            } catch (e) {
+                console.error("Failed to load sidebar", e);
+            }
+        }
+
+        function switchChat(id) {
+            activeChatId = id;
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = '';
+            if (allChats[id] && allChats[id].history) {
+                allChats[id].history.forEach(msg => {
+                    const isUser = msg.role === 'user';
+                    chatBox.innerHTML += `
+                        <div class="${isUser ? 'msg-user self-end ml-auto text-white' : 'msg-ai text-gray-300'} p-4 rounded-2xl ${isUser ? 'rounded-tr-none' : 'rounded-tl-none'} max-w-[85%] text-sm leading-relaxed mb-2 shadow-md">
+                            ${msg.text}
+                        </div>`;
+                });
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+            loadSidebar(); // Obnoví výber v menu
+        }
+
+        function startNewChat() {
+            activeChatId = null;
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = `
+                <div class="msg-ai p-5 rounded-2xl rounded-tl-none max-w-[90%] text-gray-300 text-sm leading-relaxed" id="welcome-msg">
+                    <div class="text-[10px] uppercase tracking-wider text-blue-500 font-bold mb-1">RigRadar AI</div>
+                    Hello! Let's find your perfect hardware. What are you building?
+                </div>`;
+            loadSidebar(); 
+        }
+        // ==========================================
 
         async function sendMessage() {
             const input = document.getElementById('user-input');
@@ -225,8 +147,7 @@
                             ${data.text}
                         </div>`;
                         
-                    // 🔴 TADY JE TA OPRAVA 1: Aktualizuje panel historie po odeslání zprávy
-                    loadSidebar(); 
+                    loadSidebar(); // Načíta nový chat do zoznamu
                 } else {
                     chatBox.innerHTML += `<div class="msg-ai p-3 text-red-400 text-xs">${data.text || "Error"}</div>`;
                 }
@@ -303,7 +224,6 @@
         }
 
         async function fetchLatestDeal() {
-            // 🔴 TADY JE OCHRANA VERCEL LIMITŮ
             if (document.hidden) return; 
 
             try {
@@ -375,11 +295,9 @@
             fetchLatestDeal();
             setInterval(fetchLatestDeal, 15000); 
             
-            // 🔴 TADY JE TA OPRAVA 2: Načte historii hned po startu stránky
+            // 🔥 KONEČNE: TOTO NAČÍTA HISTÓRIU HNEĎ PO ZAPNUTÍ STRÁNKY
             await loadSidebar(); 
         });
     </script>
-</body>
-</html>
 </body>
 </html>
