@@ -375,11 +375,14 @@
             setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
             loadLayout();
             initChart();
             fetchLatestDeal();
             setInterval(fetchLatestDeal, 15000); 
+            
+            // --- TOTO CHYBĚLO: Načte historii z databáze hned po startu! ---
+            await loadSidebar(); 
         });
     </script>
 </body>
