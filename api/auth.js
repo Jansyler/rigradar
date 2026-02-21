@@ -82,7 +82,7 @@ if (req.method === 'GET' && action === 'github_callback') {
             const { idToken } = req.body;
             const ticket = await authClient.verifyIdToken({
                 idToken,
-                audience: "636272588894-duknv543nso4j9sj4j2d1qkq6tc690gf.apps.googleusercontent.com",
+                audience: process.env.GOOGLE_CLIENT_ID,
             });
             const email = ticket.getPayload().email;
             
