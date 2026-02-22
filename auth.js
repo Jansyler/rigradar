@@ -33,8 +33,9 @@ async function syncPremiumStatus() {
             // Cookie vypršela nebo je neplatná -> odhlásit uživatele
             logout(); 
         }
-    } catch (e) {
-        console.error("Failed to sync premium status:", e);
+} catch (e) {
+        console.error("Failed to sync premium status (Network Error), keeping local state.", e);
+        // Hlavně tady NIKDY nevolej logout() při chybě připojení (catch blok)
     }
 }
 
