@@ -718,13 +718,20 @@ async function requestScan() {
                 console.error('Failed to copy text: ', err);
             });
         }
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadLayout(); 
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await loadLayout(); 
+        if (window.MarketUI) {
             MarketUI.initChart('priceChart');
-            await fetchLatestDeal();
-            setInterval(fetchLatestDeal, 10000); 
-        });
+        }
+        const res = await fetchLatestDeal();
+        if (res && res.pusherKey) {
+            MarketUI.initRealtime(res.pusherKey);
+        }
+    } catch (err) {
+        console.error("Init Error:", err);
+    }
+});
 </script>
 </body>
 </html>
