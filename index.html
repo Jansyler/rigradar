@@ -541,10 +541,11 @@ async function fetchLatestDeal() {
         // 🛡️ KLÍČOVÝ KROK: Vrátíme data, aby se mohl spustit Pusher
         return data; 
 
-    } catch (e) { 
-        console.error("Fetch Error:", e); 
-        return null;
-    }
+} catch (e) { 
+    console.error("Fetch Error:", e); 
+    if (window.MarketUI) MarketUI.showToast("Connection lost. Radar offline.", "error");
+    return null;
+}
 }
 
 async function saveScanFromIndex(event, dealDataEscaped, btn) {
