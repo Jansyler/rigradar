@@ -418,64 +418,73 @@
 
 
 
-        async function fetchLatestDeal() {
-            if (document.hidden) return; 
+async function fetchLatestDeal() {
+    if (document.hidden) return; 
 
-            try {
-                const res = await fetch(`/api/update_price`); 
-                const data = await res.json();
-                
-                // --- HEARTBEAT KONTROLA ---
-                const dot = document.getElementById('system-status-dot');
-                const text = document.getElementById('system-status-text');
-                
-                if (dot && text && data.systemStatus) {
-                    const diff = (Date.now() - data.systemStatus.timestamp) / 1000;
-                    if (diff > 120) { 
-                        dot.className = "w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]";
-                        text.innerText = "System Offline";
-                        text.className = "text-[10px] uppercase tracking-widest text-red-500 font-bold";
-                    } else {
-                        dot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
-                        text.innerText = "System Online";
-                        text.className = "text-[10px] uppercase tracking-widest text-blue-400 font-bold";
-                    }
-                }
-
-                if (data.history && Array.isArray(data.history) && data.history.length > 0) {
-
-                    const list = document.getElementById('history-list');
-                    let htmlContent = '';
-                    const chartPrices = [];
-                    const chartLabels = [];
-
-                    data.history.slice(0, 5).forEach(deal => {
-                        let listPrice = deal.price || "---";
-                        if(listPrice.includes(":")) listPrice = listPrice.split(":")[1].trim();
-                        
-                        const p = parseFloat(listPrice.replace(/[^0-9.]/g, ''));
-                        if (!isNaN(p)) { chartPrices.push(p); chartLabels.push(''); }
-
-                        const dealEscaped = encodeURIComponent(JSON.stringify(deal)).replace(/'/g, "%27");
-                        htmlContent += `
-                            <div onclick="MarketUI.openDetail('${dealEscaped}')" class="glass-panel p-4 rounded-xl cursor-pointer hover:border-blue-500/30 transition-all border border-white/5">
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="text-[10px] text-blue-400 font-bold uppercase">${deal.store || 'WEB'}</span>
-                                    <span class="text-sm font-black text-white">${listPrice}</span>
-                                </div>
-                                <h3 class="text-gray-300 text-xs truncate">${deal.title || 'Product'}</h3>
-                            </div>`;
-                    });
-                    
-                    if (htmlContent) list.innerHTML = htmlContent;
-
-                    if (chartPrices.length > 0) {
-                        const chartTitle = data.history[0].title.split(' ').slice(0, 4).join(' ');
-                        MarketUI.updateChart(chartPrices.reverse(), chartLabels, chartTitle);
-                    }
-                }
-            } catch (e) { console.error("Fetch error:", e); }
+    try {
+        // 🛡️ Identita je řešena automaticky přes HttpOnly Cookies
+        const res = await fetch(`/api/update_price`); 
+        const data = await res.json();
+        
+        // --- HEARTBEAT KONTROLA ---
+        const dot = document.getElementById('system-status-dot');
+        const text = document.getElementById('system-status-text');
+        
+        if (dot && text && data.systemStatus) {
+            const diff = (Date.now() - data.systemStatus.timestamp) / 1000;
+            if (diff > 120) { 
+                dot.className = "w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]";
+                text.innerText = "System Offline";
+                text.className = "text-[10px] uppercase tracking-widest text-red-500 font-bold";
+            } else {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
+                text.innerText = "System Online";
+                text.className = "text-[10px] uppercase tracking-widest text-blue-400 font-bold";
+            }
         }
+
+        // --- UPDATE UI SEZNAMU ---
+        if (data.history && Array.isArray(data.history) && data.history.length > 0) {
+            const list = document.getElementById('history-list');
+            let htmlContent = '';
+            const chartPrices = [];
+            const chartLabels = [];
+
+            data.history.slice(0, 5).forEach(deal => {
+                let listPrice = deal.price || "---";
+                if(listPrice.includes(":")) listPrice = listPrice.split(":")[1].trim();
+                
+                const p = parseFloat(listPrice.replace(/[^0-9.]/g, ''));
+                if (!isNaN(p)) { chartPrices.push(p); chartLabels.push(''); }
+
+                const dealEscaped = encodeURIComponent(JSON.stringify(deal)).replace(/'/g, "%27");
+                htmlContent += `
+                    <div onclick="MarketUI.openDetail('${dealEscaped}')" class="glass-panel p-4 rounded-xl cursor-pointer hover:border-blue-500/30 transition-all border border-white/5">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] text-blue-400 font-bold uppercase">${deal.store || 'WEB'}</span>
+                            <span class="text-sm font-black text-white">${listPrice}</span>
+                        </div>
+                        <h3 class="text-gray-300 text-xs truncate">${deal.title || 'Product'}</h3>
+                    </div>`;
+            });
+            
+            if (list && htmlContent) list.innerHTML = htmlContent;
+
+            // --- UPDATE GRAFU ---
+            if (chartPrices.length > 0 && window.MarketUI) {
+                const chartTitle = data.history[0].title.split(' ').slice(0, 4).join(' ');
+                MarketUI.updateChart(chartPrices.reverse(), chartLabels, chartTitle);
+            }
+        }
+
+        // 🛡️ KLÍČOVÝ KROK: Vrátíme data, aby DOMContentLoaded získal pusherKey z Vercelu
+        return data;
+
+    } catch (e) { 
+        console.error("Fetch error:", e); 
+        return null;
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
