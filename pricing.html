@@ -75,7 +75,7 @@
 
             try {
                 // 🛡️ Žádné hlavičky Authorization, cookies se posílají samy
-                const response = await fetch('/api/create-checkout-session', {
+                const response = await fetch('/api/stripe?type=checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
