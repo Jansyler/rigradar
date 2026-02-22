@@ -5,47 +5,72 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 })
 
+// 🛡️ POMOCNÁ FUNKCE: Ochrana proti Prompt Injection
+const sanitizeQuery = (q) => {
+    if (typeof q !== 'string') return '';
+    // Povolí jen písmena, čísla, mezery a základní znaky pro hardware (např. +, -, .)
+    // Odstraní různé speciální znaky používané pro "Jailbreak" AI
+    let cleaned = q.replace(/[^a-zA-Z0-9\s\-\.\+]/g, '').trim();
+    // Omezí délku na 60 znaků (zabrání zaspamování AI obrovským textem)
+    return cleaned.substring(0, 60);
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // 1. ZÍSKÁNÍ A OVĚŘENÍ RELACE PŘES NAŠI REDIS DATABÁZI
-  const authHeader = req.headers.authorization;
-  let verifiedEmail = null;
+  // 1. ZÍSKÁNÍ TOKENU Z HTTP-ONLY COOKIE (Už nevěříme hlavičce z frontendu)
+  const cookieHeader = req.headers.cookie || '';
+  const tokenMatch = cookieHeader.match(/rr_auth_token=([^;]+)/);
+  const token = tokenMatch ? tokenMatch[1] : null;
 
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      try {
-          verifiedEmail = await redis.get(`session:${token}`);
-      } catch (e) {
-          console.error("Session verification failed:", e);
-      }
-  }
-
-  if (!verifiedEmail) {
+  if (!token) {
       return res.status(401).json({ error: "Unauthorized. Please log in." });
   }
 
-  const { query, stores, ownerEmail, condition, minPrice, maxPrice } = req.body;
-  if (!query) return res.status(400).json({ error: 'Query is required' });
-
-  // Bezpečnostní pojistka: uživatel může skenovat jen pod svým emailem
-  if (ownerEmail !== verifiedEmail) {
-      return res.status(403).json({ error: "Forbidden. Email mismatch." });
+  // Ověření session v Redisu
+  let verifiedEmail = null;
+  try {
+      verifiedEmail = await redis.get(`session:${token}`);
+  } catch (e) {
+      console.error("Session verification failed:", e);
   }
 
-  // 2. KONTROLA PREMIUM LIMITŮ Z NOVÉHO ATOMICKÉHO KLÍČE
+  if (!verifiedEmail) {
+      return res.status(401).json({ error: "Session expired. Please log in again." });
+  }
+
+  // 2. NAČTENÍ A SANITIZACE VSTUPŮ
+  // Poznámka: ownerEmail už od frontendu nebereme, použijeme verifiedEmail!
+  const { query, stores, condition, minPrice, maxPrice } = req.body;
+  
+  const cleanQuery = sanitizeQuery(query);
+  if (!cleanQuery || cleanQuery.length < 2) {
+      return res.status(400).json({ error: 'Invalid or too short search query.' });
+  }
+
+  // Očištění a validace obchodů
+  const allowedStores = ['ebay', 'amazon', 'alza', 'bazos'];
+  let cleanStores = Array.isArray(stores) ? stores.map(s => String(s).toLowerCase()) : ['ebay'];
+  cleanStores = cleanStores.filter(s => allowedStores.includes(s));
+  if (cleanStores.length === 0) cleanStores = ['ebay'];
+
+  // Očištění podmínek
+  const validConditions = ['any', 'new', 'used'];
+  const cleanCondition = validConditions.includes(condition) ? condition : 'any';
+
+  // Očištění cen
+  const cleanMin = minPrice ? Math.abs(Number(minPrice)) : null;
+  const cleanMax = maxPrice ? Math.abs(Number(maxPrice)) : null;
+
+  // 3. KONTROLA PREMIUM LIMITŮ
   try {
-    // 🚨 OPRAVA: Čteme z klíče nastaveného novým webhookem
     const premiumData = await redis.get(`premium:${verifiedEmail}`);
     const isPremium = premiumData ? premiumData.isActive === true : false;
-
-    // Vyžádané obchody (pokud nevybere, dáme eBay)
-    const requestedStores = stores && stores.length > 0 ? stores : ['ebay'];
 
     // Pokud NENÍ premium a chce skenovat Amazon nebo Alzu -> ZAMÍTNOUT
     if (!isPremium) {
         const premiumStores = ['amazon', 'alza'];
-        const wantsPremiumStore = requestedStores.some(store => premiumStores.includes(store.toLowerCase()));
+        const wantsPremiumStore = cleanStores.some(store => premiumStores.includes(store));
         
         if (wantsPremiumStore) {
             return res.status(403).json({ 
@@ -54,16 +79,16 @@ export default async function handler(req, res) {
         }
     }
 
-    // 3. Odeslání do fronty (pro Python worker na VPS)
+    // 4. ODESLÁNÍ DO FRONTY PRO PYTHON WORKER
     const task = JSON.stringify({
-      query: query,
-      stores: requestedStores,
-      ownerEmail: verifiedEmail,
-      condition: condition || 'any',
-      minPrice: minPrice || null,
-      maxPrice: maxPrice || null,
+      query: cleanQuery,
+      stores: cleanStores,
+      ownerEmail: verifiedEmail, // Bezpečně z naší DB!
+      condition: cleanCondition,
+      minPrice: cleanMin,
+      maxPrice: cleanMax,
       timestamp: Date.now(),
-      priority: isPremium, // Premium uživatelé mají přednost ve frontě!
+      priority: isPremium,
       source: 'user_request'
     });
 
