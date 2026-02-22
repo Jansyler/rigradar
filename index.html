@@ -198,7 +198,7 @@
                 </div>
             </div>
 
-            <div class="glass-panel p-8 rounded-[32px] lg:col-span-1 flex flex-col justify-center relative overflow-hidden border border-white/5 group hover:border-blue-500/30 transition-colors cursor-pointer min-h-[350px]" onclick="location.href='chat.html'">
+           <div class="glass-panel p-8 rounded-[32px] lg:col-span-1 flex flex-col justify-center relative overflow-hidden border border-white/5 group hover:border-blue-500/30 transition-colors cursor-pointer min-h-[350px]" onclick="location.href='chat.html'">
                 <div class="absolute right-0 top-0 w-full h-1/2 bg-gradient-to-b from-blue-900/10 to-transparent pointer-events-none"></div>
                 <div class="flex justify-between items-center mb-6 relative z-10">
                     <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
@@ -224,7 +224,6 @@
                         <span class="text-xl font-black text-gray-500">$1,050</span>
                     </div>
                 </div>
- <div class="glass-panel p-8 rounded-[32px] lg:col-span-1 flex flex-col justify-center relative overflow-hidden border border-white/5 group hover:border-blue-500/30 transition-colors cursor-pointer min-h-[350px]" onclick="location.href='chat.html'">
                 <div class="mt-6 text-center text-[10px] text-blue-100/50 italic leading-relaxed">
                     AI detected a <span class="text-white font-bold">$151 spread</span> on RTX 4080 Super.
                 </div>
@@ -232,15 +231,14 @@
 
             <div id="frankenstein-card" class="glass-panel p-8 md:p-10 rounded-[32px] lg:col-span-3 hidden flex-col md:flex-row gap-8 relative overflow-hidden group border border-green-500/30 hover:border-green-400/60 transition-all min-h-[300px]">
                 </div>
-            </div> <div id="detail-modal" class="fixed inset-0 z-[300] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-all opacity-0">
-            </div>
 
-        </div>
-
-        <div id="detail-modal" class="fixed inset-0 z-[300] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-all opacity-0">
+        </div> <div id="detail-modal" class="fixed inset-0 z-[300] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-all opacity-0">
             <div class="glass-panel w-full max-w-lg rounded-[32px] p-8 relative border border-blue-500/30 shadow-[0_0_50px_rgba(59,130,246,0.2)] transform scale-95 transition-all duration-300">
-<button onclick="MarketUI.closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white text-2xl">✕</button>
-                <div id="modal-badge" class="inline-block px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] uppercase font-bold mb-4 tracking-widest">STORE</div>
+                <button onclick="MarketUI.closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white text-2xl">✕</button>
+                <div class="flex items-center gap-2 mb-4">
+                    <div id="modal-badge" class="inline-block px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] uppercase font-bold tracking-widest">STORE</div>
+                    <div id="modal-forecast"></div>
+                </div>
                 <h2 id="modal-title" class="text-2xl font-black text-white leading-tight mb-2">---</h2>
                 <div id="modal-price" class="text-5xl font-black text-blue-500 tracking-tighter mb-6">$---</div>
                 <div class="space-y-4">
@@ -256,7 +254,6 @@
                 </div>
             </div>
         </div>
-
         <div id="support-widget" class="fixed bottom-6 right-6 z-[200] w-14 h-14 bg-blue-600/20 text-blue-400 rounded-full border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] backdrop-blur-md overflow-hidden flex flex-col transition-all duration-300">
             <div onclick="toggleSupport()" class="w-full h-14 min-h-[56px] flex items-center justify-center cursor-pointer hover:bg-blue-600/40 transition-all absolute top-0 left-0 z-20 group">
                 <span id="supp-icon-open" class="text-2xl group-hover:scale-110 transition-transform">💬</span>
