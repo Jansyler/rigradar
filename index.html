@@ -544,43 +544,46 @@ async function fetchLatestDeal() {
         }
 
         // 🧟‍♂️ NOVINKA: ZOBRAZENÍ FRANKENSTEIN BUILDU
-        if (data.frankenstein) {
-            const fCard = document.getElementById('frankenstein-card');
-            if (fCard) {
-                // Skryjeme fallback/prázdnou kartu, ukážeme obsah
-                fCard.classList.remove('hidden');
-                fCard.classList.add('flex');
-                
-                // Připravíme list komponent
-                let partsHtml = '';
-                if (Array.isArray(data.frankenstein.parts)) {
-                    partsHtml = data.frankenstein.parts.map(p => `<li class="text-xs text-green-200/70 font-mono border-b border-green-500/10 py-2">${p}</li>`).join('');
-                }
-                
-                // Naplníme kartu HTML obsahem
-                fCard.innerHTML = `
-                    <div class="absolute inset-0 bg-gradient-to-r from-green-900/10 to-purple-900/10 opacity-50 pointer-events-none"></div>
-                    <div class="flex-1 relative z-10 space-y-4">
-                        <h3 class="text-xs md:text-sm font-bold text-green-400 uppercase tracking-widest mb-2 flex items-center gap-3">
-                            <span class="text-2xl animate-pulse">🧟‍♂️</span> Frankenstein Build of the Day
-                        </h3>
-                        <h4 class="text-3xl md:text-5xl font-black text-white leading-tight tracking-tight">${data.frankenstein.title || "Unknown Build"}</h4>
-                        <div class="inline-block bg-green-500/20 text-green-400 border border-green-500/30 px-5 py-2 rounded-xl text-2xl font-black tracking-widest mt-2 mb-4 shadow-[0_0_15px_rgba(34,197,94,0.2)]">
-                            ${data.frankenstein.total_price || "$---"}
-                        </div>
-                        <p class="text-green-100/80 text-sm leading-relaxed italic border-l-2 border-green-500/50 pl-4 bg-green-900/20 p-4 rounded-r-xl">"${data.frankenstein.commentary || "No commentary available."}"</p>
-                    </div>
-                    <div class="flex-1 relative z-10 bg-black/60 border border-green-500/20 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
-                        <h5 class="text-xs uppercase text-green-500 font-bold tracking-widest mb-4 border-b border-green-500/20 pb-3 flex items-center gap-2"><span>⚙️</span> Salvaged Parts</h5>
-                        <ul class="space-y-1 mb-6">
-                            ${partsHtml}
-                        </ul>
-                        <button onclick="location.href='chat.html'" class="w-full bg-green-600/20 hover:bg-green-600/40 border border-green-500/50 text-green-400 font-bold py-3.5 rounded-xl transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                            <span>🛠️</span> Ask AI to modify build
-                        </button>
-                    </div>
-                `;
+        const fCard = document.getElementById('frankenstein-card');
+        if (data.frankenstein && fCard) {
+            console.log("✅ Frankenstein data nalezena:", data.frankenstein);
+            fCard.classList.remove('hidden');
+            fCard.classList.add('flex');
+            
+            let partsHtml = '';
+            if (data.frankenstein.parts && Array.isArray(data.frankenstein.parts)) {
+                partsHtml = data.frankenstein.parts.map(p => `<li class="text-xs text-green-200/70 font-mono border-b border-green-500/10 py-2">${p}</li>`).join('');
             }
+            
+            fCard.innerHTML = `
+                <div class="absolute inset-0 bg-gradient-to-r from-green-900/10 to-purple-900/10 opacity-50 pointer-events-none"></div>
+                <div class="flex-1 relative z-10 space-y-4">
+                    <h3 class="text-xs md:text-sm font-bold text-green-400 uppercase tracking-widest mb-2 flex items-center gap-3">
+                        <span class="text-2xl animate-pulse">🧟‍♂️</span> Frankenstein Build of the Day
+                    </h3>
+                    <h4 class="text-3xl md:text-5xl font-black text-white leading-tight tracking-tight">${data.frankenstein.title || "Unknown Build"}</h4>
+                    <div class="inline-block bg-green-500/20 text-green-400 border border-green-500/30 px-5 py-2 rounded-xl text-2xl font-black tracking-widest mt-2 mb-4 shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+                        ${data.frankenstein.total_price || "$---"}
+                    </div>
+                    <p class="text-green-100/80 text-sm leading-relaxed italic border-l-2 border-green-500/50 pl-4 bg-green-900/20 p-4 rounded-r-xl">"${data.frankenstein.commentary || "No commentary available."}"</p>
+                </div>
+                <div class="flex-1 relative z-10 bg-black/60 border border-green-500/20 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
+                    <h5 class="text-xs uppercase text-green-500 font-bold tracking-widest mb-4 border-b border-green-500/20 pb-3 flex items-center gap-2"><span>⚙️</span> Salvaged Parts</h5>
+                    <ul class="space-y-1 mb-6">
+                        ${partsHtml}
+                    </ul>
+                    <button onclick="location.href='chat.html'" class="w-full bg-green-600/20 hover:bg-green-600/40 border border-green-500/50 text-green-400 font-bold py-3.5 rounded-xl transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                        <span>🛠️</span> Ask AI to modify build
+                    </button>
+                </div>
+            `;
+        } else {
+            // 🛑 TENTO ŘÁDEK TI V KONZOLI PROZRADÍ, PROČ SE TO NEUKAZUJE
+            console.log("⚠️ Frankenstein skryt: Data buď chybí v API, nebo nebyl nalezen div.", {
+                dataExists: !!data.frankenstein, 
+                divExists: !!fCard
+            });
+            if (fCard) fCard.classList.add('hidden');
         }
 
         // 🛡️ KLÍČOVÝ KROK: Vrátíme data, aby se mohl spustit Pusher
