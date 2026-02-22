@@ -305,283 +305,528 @@
 
     <script src="auth.js"></script>
 <script>
-// --- SUPPORT BOT LOGIC ---
-    let supportHistory = [];
-    
-    function toggleSupport() {
-        const widget = document.getElementById('support-widget');
-        const body = document.getElementById('supp-body');
-        const iconOpen = document.getElementById('supp-icon-open');
-        const iconClose = document.getElementById('supp-icon-close');
-        widget.classList.toggle('open');
+        // --- SUPPORT BOT LOGIC ---
+        let supportHistory = [];
         
-        if (widget.classList.contains('open')) {
-            body.classList.remove('opacity-0');
-            iconOpen.classList.add('hidden');
-            iconClose.classList.remove('hidden');
-        } else {
-            body.classList.add('opacity-0');
-            iconOpen.classList.remove('hidden');
-            iconClose.classList.add('hidden');
+        function toggleSupport() {
+            const widget = document.getElementById('support-widget');
+            const body = document.getElementById('supp-body');
+            const iconOpen = document.getElementById('supp-icon-open');
+            const iconClose = document.getElementById('supp-icon-close');
+
+            widget.classList.toggle('open');
+            
+            if (widget.classList.contains('open')) {
+                body.classList.remove('opacity-0');
+                iconOpen.classList.add('hidden');
+                iconClose.classList.remove('hidden');
+            } else {
+                body.classList.add('opacity-0');
+                iconOpen.classList.remove('hidden');
+                iconClose.classList.add('hidden');
+            }
         }
-    }
 
-    async function sendSupportMsg() {
-        const input = document.getElementById('supp-input');
-        const msg = input.value.trim();
-        if (!msg) return;
-        const chat = document.getElementById('supp-messages');
-        chat.innerHTML += `<div class="msg-supp-user p-3 text-white self-end ml-auto max-w-[85%]">${msg}</div>`;
-        input.value = '';
-        chat.scrollTop = chat.scrollHeight;
-        supportHistory.push({ role: 'user', text: msg });
+        async function sendSupportMsg() {
+            const input = document.getElementById('supp-input');
+            const msg = input.value.trim();
+            if (!msg) return;
 
-        try {
-            const res = await fetch('/api/support', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: msg, history: supportHistory })
-            });
-            const data = await res.json();
-            chat.innerHTML += `<div class="msg-supp-ai p-3 text-gray-300 max-w-[85%]">${data.text}</div>`;
-            supportHistory.push({ role: 'ai', text: data.text });
+            const chat = document.getElementById('supp-messages');
+            chat.innerHTML += `<div class="msg-supp-user p-3 text-white self-end ml-auto max-w-[85%]">${msg}</div>`;
+            input.value = '';
             chat.scrollTop = chat.scrollHeight;
-        } catch (e) {
-            chat.innerHTML += `<div class="msg-supp-ai p-3 text-red-400">Connection failed.</div>`;
+
+            supportHistory.push({ role: 'user', text: msg });
+
+            try {
+                const res = await fetch('/api/support', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg, history: supportHistory })
+                });
+                const data = await res.json();
+                
+                chat.innerHTML += `<div class="msg-supp-ai p-3 text-gray-300 max-w-[85%]">${data.text}</div>`;
+                supportHistory.push({ role: 'ai', text: data.text });
+                chat.scrollTop = chat.scrollHeight;
+            } catch (e) {
+                chat.innerHTML += `<div class="msg-supp-ai p-3 text-red-400">Connection failed.</div>`;
+            }
         }
-    }
 
-    // --- NOTIFICATIONS, MODAL & CHART LOGIC ---
-    let lastNotifiedId = null;
-    let isFirstLoad = true;
-    let isWaitingForScan = false;
-    let priceChartInstance = null;
+        // --- NOTIFICATIONS & CHART LOGIC ---
+        let lastNotifiedId = null;
+        let isFirstLoad = true;
+        let isWaitingForScan = false;
 
-    function initChart() {
-        const canvas = document.getElementById('priceChart');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)'); 
-        gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+        function showRigNotification(title, price, link, deal) {
+            const container = document.getElementById('notification-container');
+            const id = Date.now();
+            
+            const notification = document.createElement('div');
+            notification.className = "glass-panel pointer-events-auto p-4 rounded-2xl shadow-2xl transform translate-x-full transition-all duration-500 ease-out cursor-pointer hover:border-blue-500/50 min-w-[280px] border border-white/5";
+            notification.id = `notif-${id}`;
+            notification.style.background = "rgba(10, 10, 10, 0.9)";
+            
+            notification.innerHTML = `
+                <div class="flex items-center gap-4">
+                    <div class="bg-blue-600/20 p-2 rounded-lg text-blue-400">📡</div>
+                    <div class="flex-grow">
+                        <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Satellite Found Deal</p>
+                        <p class="text-sm font-bold text-white truncate w-48">${title}</p>
+                        <p class="text-lg font-black text-green-400 mt-1">${price}</p>
+                    </div>
+                </div>
+            `;
 
-        priceChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: { labels: [], datasets: [{ label: 'Price', data: [], borderColor: '#3b82f6', backgroundColor: gradient, fill: true, tension: 0.3 }] },
-            options: { 
-                responsive: true, maintainAspectRatio: false, 
-                plugins: { legend: { display: false } },
-                scales: { 
-                    x: { display: true, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#666', font: { size: 10 } } },
-                    y: { display: true, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#666' } }
+            notification.onclick = () => {
+                const dealDataEscaped = encodeURIComponent(JSON.stringify(deal))
+                    .replace(/'/g, "%27")
+                    .replace(/\(/g, "%28")
+                    .replace(/\)/g, "%29");
+                openDetail(dealDataEscaped);
+                notification.remove();
+            };
+
+            container.appendChild(notification);
+            setTimeout(() => notification.classList.remove('translate-x-full'), 100);
+
+            setTimeout(() => {
+                notification.classList.add('translate-x-[150%]');
+                setTimeout(() => notification.remove(), 500);
+            }, 6000);
+        }
+
+        function checkNotifications(deal) {
+            if (!deal || !deal.id) return;
+            
+            if (isFirstLoad) {
+                lastNotifiedId = deal.id;
+                isFirstLoad = false;
+                return;
+            }
+
+            if (lastNotifiedId !== deal.id) {
+                lastNotifiedId = deal.id;
+                
+                if (isWaitingForScan) {
+                    showRigNotification(deal.title, deal.price, deal.url, deal);
+                    isWaitingForScan = false; 
                 }
             }
-        });
-    }
+        }
 
-    function openDetail(dealDataEscaped) {
-        try {
-            const deal = JSON.parse(decodeURIComponent(dealDataEscaped));
+        // --- MODAL LOGIC ---
+        function openDetail(dealDataEscaped) {
+            try {
+                const deal = JSON.parse(decodeURIComponent(dealDataEscaped));
+                const modal = document.getElementById('detail-modal');
+                const modalContent = modal.querySelector('div');
+                
+                document.getElementById('modal-title').innerText = deal.title || "Product Detail";
+                document.getElementById('modal-price').innerText = deal.price || "---";
+                document.getElementById('modal-opinion').innerText = deal.opinion || "No analysis available.";
+                document.getElementById('modal-badge').innerText = (deal.store || "WEB").toUpperCase();
+                
+                const score = deal.score || 50;
+                document.getElementById('modal-score-val').innerText = score + '%';
+                document.getElementById('modal-score-bar').style.width = score + '%';
+                
+                const link = document.getElementById('modal-link');
+                if (deal.url && deal.url !== "#") { link.href = deal.url; link.classList.remove('hidden'); } 
+                else { link.classList.add('hidden'); }
+
+                modal.classList.remove('hidden');
+                setTimeout(() => { modal.classList.remove('opacity-0'); modalContent.classList.remove('scale-95'); modalContent.classList.add('scale-100'); }, 10);
+            } catch (e) { console.error("Error opening detail:", e); }
+        }
+
+        function closeModal() {
             const modal = document.getElementById('detail-modal');
             const modalContent = modal.querySelector('div');
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // --- CHART LOGIC ---
+        let priceChartInstance = null;
+
+        function initChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)'); 
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+            priceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Price',
+                        data: [], 
+                        borderColor: '#3b82f6',
+                        borderWidth: 3,
+                        backgroundColor: gradient,
+                        pointBackgroundColor: '#1a1a1a',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#3b82f6',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) { return '$ ' + context.parsed.y.toLocaleString(); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            display: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#666', font: { size: 10 }, maxTicksLimit: 6 }
+                        },
+                        y: { 
+                            display: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#666', callback: function(value) { return '$' + value; } }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function fetchLatestDeal() {
+            try {
+                const userEmail = localStorage.getItem('rr_user_email');
+                const res = await fetch(`/api/update_price${userEmail ? '?user='+userEmail : ''}`);
+                const data = await res.json();
+                
+                // NOTIFIKACE
+                if (data.history && data.history.length > 0) {
+                    checkNotifications(data.history[0]);
+                } else if (data.latest) {
+                    checkNotifications(data.latest);
+                }
+
+                // --- HLAVNÍ KARTA (TOP CATCH) - OPRAVENÁ ID! ---
+                if (data.latest) {
+                    const priceEl = document.getElementById('top-catch-price');
+                    const opinionEl = document.getElementById('top-catch-opinion');
+                    const titleEl = document.getElementById('top-catch-title');
+                    const storeEl = document.getElementById('top-catch-store');
+
+                    let cleanPrice = data.latest.price || "---";
+                    if(cleanPrice.includes(":")) cleanPrice = cleanPrice.split(":")[1].trim();
+
+                    if(priceEl) priceEl.innerText = cleanPrice;
+                    if(opinionEl) opinionEl.innerText = `"${data.latest.opinion || "Scanning market..."}"`;
+                    if(titleEl) titleEl.innerText = data.latest.title || "Latest Catch";
+                    if(storeEl) storeEl.innerText = data.latest.store || "WEB";
+                    
+                    // --- UPDATE GRAFU ---
+                    if (priceChartInstance && data.history) {
+                        const activeTitle = data.latest.title || "Unknown Product";
+                        
+                        const chartTitleEl = document.getElementById('chart-title');
+                        if(chartTitleEl) chartTitleEl.innerText = activeTitle.split(' ').slice(0, 6).join(' ');
+
+                        const keywords = activeTitle.split(' ').slice(0, 2).join(' ').toLowerCase();
+                        const allDeals = [data.latest, ...data.history];
+                        
+                        const relevantDeals = allDeals.filter(d => d.title && d.title.toLowerCase().includes(keywords));
+
+                        const chartPrices = [];
+                        const chartLabels = [];
+
+                        relevantDeals.forEach(d => {
+                            const p = parseFloat(d.price.toString().replace(/[^0-9.]/g, ''));
+                            if (!isNaN(p)) {
+                                chartPrices.push(p);
+                                const date = new Date(d.timestamp);
+                                const day = date.toLocaleDateString('en-US', { weekday: 'short' });
+                                const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                                chartLabels.push(`${day} ${time}`);
+                            }
+                        });
+
+                        if (chartPrices.length > 0) {
+                            priceChartInstance.data.datasets[0].data = chartPrices.reverse();
+                            priceChartInstance.data.labels = chartLabels.reverse();
+                            priceChartInstance.update();
+                        }
+                    }
+                }
+
+                // --- LIST UPDATE ---
+                const list = document.getElementById('history-list');
+                const savedIds = (data.saved || []).map(s => s.id);
+
+                if (list && data.history && Array.isArray(data.history)) {
+                    const limitedHistory = data.history.slice(0, 5); 
+                    let htmlContent = '';
+                    limitedHistory.forEach((deal, index) => {
+                        let timeText = "Now";
+                        if (deal.timestamp) {
+                            const diffMs = Date.now() - deal.timestamp;
+                            const minutes = Math.floor(diffMs / 60000);
+                            timeText = minutes < 1 ? "< 1 min" : `${minutes} min`;
+                        }
+                        const score = deal.score || 50; 
+                        let scoreColor = score >= 80 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]' : (score < 45 ? 'bg-red-600' : 'bg-blue-500');
+                        let listPrice = deal.price || "---";
+                        if(listPrice.includes(":")) listPrice = listPrice.split(":")[1].trim();
+                        
+                        const dealDataEscaped = encodeURIComponent(JSON.stringify(deal))
+                            .replace(/'/g, "%27")
+                            .replace(/\(/g, "%28")
+                            .replace(/\)/g, "%29"); 
+                        
+                        const isSaved = savedIds.includes(deal.id);
+                        
+                        let saveButtonHtml;
+                        if (isSaved) {
+                            saveButtonHtml = `
+                            <button class="text-green-500 border border-green-500/50 bg-green-500/10 p-2 rounded-lg z-10 cursor-default" title="Already Saved">
+                                <span class="font-bold text-xs">✓</span>
+                            </button>`;
+                        } else {
+                            saveButtonHtml = `
+                            <button onclick="saveScanFromIndex(event, '${dealDataEscaped}', this)" class="bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-all z-10" title="Save to Archive">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
+                            </button>`;
+                        }
+
+                        htmlContent += `
+                            <div onclick="openDetail('${dealDataEscaped}')" class="glass-panel p-5 rounded-xl transition-all border border-white/5 hover:border-blue-500/30 new-item cursor-pointer group relative" style="opacity: ${1 - index*0.15}">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex flex-col">
+                                        <span class="text-[10px] text-blue-400 font-bold uppercase tracking-widest">${deal.store || 'WEB'}</span>
+                                        <h3 class="text-white font-bold text-sm leading-tight mt-1 group-hover:text-blue-400 transition-colors line-clamp-2 pr-8">${deal.title || 'Product'}</h3>
+                                    </div>
+                                    <div class="text-[9px] font-mono text-gray-600 pt-1 whitespace-nowrap">${timeText}</div>
+                                </div>
+                                <div class="flex justify-between items-end mt-4">
+                                    <div class="flex flex-col">
+                                        <span class="text-2xl font-black text-white tracking-tighter">${listPrice}</span>
+                                        <p class="text-[10px] text-gray-500 italic mt-1 max-w-[150px] truncate">"${deal.opinion}"</p>
+                                    </div>
+                                    
+                                    <div class="flex items-center gap-2">
+                                        ${saveButtonHtml}
+                                        <span class="text-blue-500 text-xs font-bold uppercase tracking-widest bg-blue-500/10 px-2 py-2 rounded border border-blue-500/20 group-hover:bg-blue-500 group-hover:text-white transition-all">Detail ↗</span>
+                                    </div>
+                                </div>
+                                <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-3">
+                                    <div class="h-full ${scoreColor} transition-all duration-1000" style="width: ${score}%"></div>
+                                </div>
+                            </div>`;
+                    });
+                    list.innerHTML = htmlContent;
+                }
+            } catch (e) { console.error("Fetch Error:", e); }
+        }
+
+        async function saveScanFromIndex(event, dealDataEscaped, btn) {
+            event.stopPropagation(); 
             
-            document.getElementById('modal-title').innerText = deal.title || "Product Detail";
-            document.getElementById('modal-price').innerText = deal.price || "---";
-            document.getElementById('modal-opinion').innerText = deal.opinion || "No analysis available.";
-            document.getElementById('modal-badge').innerText = (deal.store || "WEB").toUpperCase();
+            const token = localStorage.getItem('rr_auth_token');
+            if (!token) { 
+                alert("⚠️ Please log in to save scans!");
+                return; 
+            }
+
+            const deal = JSON.parse(decodeURIComponent(dealDataEscaped));
             
-            const score = deal.score || 50;
-            document.getElementById('modal-score-val').innerText = score + '%';
-            document.getElementById('modal-score-bar').style.width = score + '%';
-            
-            const link = document.getElementById('modal-link');
-            if (deal.url && deal.url !== "#") { link.href = deal.url; link.classList.remove('hidden'); } 
-            else { link.classList.add('hidden'); }
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = `✓`;
+            btn.classList.add("text-green-500", "border-green-500/50");
 
-            modal.classList.remove('hidden');
-            setTimeout(() => { modal.classList.remove('opacity-0'); modalContent.classList.remove('scale-95'); modalContent.classList.add('scale-100'); }, 10);
-        } catch (e) { console.error("Error opening detail:", e); }
-    }
-
-    function closeModal() {
-        const modal = document.getElementById('detail-modal');
-        const modalContent = modal.querySelector('div');
-        modal.classList.add('opacity-0');
-        modalContent.classList.remove('scale-100');
-        modalContent.classList.add('scale-95');
-        setTimeout(() => modal.classList.add('hidden'), 300);
-    }
-
-    function showRigNotification(title, price, deal) {
-        const container = document.getElementById('notification-container');
-        const notification = document.createElement('div');
-        notification.className = "glass-panel pointer-events-auto p-4 rounded-2xl shadow-2xl transform translate-x-full transition-all duration-500 ease-out cursor-pointer hover:border-blue-500/50 min-w-[280px] border border-white/5";
-        notification.style.background = "rgba(10, 10, 10, 0.9)";
-        notification.innerHTML = `
-            <div class="flex items-center gap-4">
-                <div class="bg-blue-600/20 p-2 rounded-lg text-blue-400">📡</div>
-                <div class="flex-grow">
-                    <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Satellite Found Deal</p>
-                    <p class="text-sm font-bold text-white truncate w-48">${title}</p>
-                    <p class="text-lg font-black text-green-400 mt-1">${price}</p>
-                </div>
-            </div>`;
-        notification.onclick = () => { openDetail(encodeURIComponent(JSON.stringify(deal))); notification.remove(); };
-        container.appendChild(notification);
-        setTimeout(() => notification.classList.remove('translate-x-full'), 100);
-        setTimeout(() => { notification.classList.add('translate-x-[150%]'); setTimeout(() => notification.remove(), 500); }, 6000);
-    }
-
-    function checkNotifications(deal) {
-        if (!deal || !deal.id) return;
-        if (isFirstLoad) { lastNotifiedId = deal.id; isFirstLoad = false; return; }
-        if (lastNotifiedId !== deal.id) {
-            lastNotifiedId = deal.id;
-            if (isWaitingForScan) {
-                showRigNotification(deal.title, deal.price, deal);
-                isWaitingForScan = false;
+            try {
+                const res = await fetch('/api/save_scan', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ deal }) 
+                });
+                
+                if(!res.ok) {
+                    btn.innerHTML = "❌";
+                    btn.classList.remove("text-green-500", "border-green-500/50");
+                    btn.classList.add("text-red-500");
+                    if (res.status === 401) alert("Session expired. Log in again.");
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalContent;
+                        btn.classList.remove("text-red-500");
+                    }, 2000);
+                }
+            } catch (e) {
+                console.error(e);
+                btn.innerHTML = "❌";
+                btn.classList.remove("text-green-500", "border-green-500/50");
+                btn.classList.add("text-red-500");
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.remove("text-red-500");
+                }, 2000);
             }
         }
-    }
 
-    async function fetchLatestDeal() {
-        try {
-            const userEmail = localStorage.getItem('rr_user_email');
-            const res = await fetch(`/api/update_price${userEmail ? '?user='+userEmail : ''}`);
-            const data = await res.json();
+        // --- SAFEGUARD: requestScan a setCondition jsou určeny primárně pro chat.html, 
+        // ale ponecháváme je s kontrolou, aby nevyhazovaly chyby, pokud by se na ně něco odkázalo.
+        async function requestScan() {
+            const queryEl = document.getElementById('scanQuery');
+            if (!queryEl) return; // Ochrana pro index.html
             
-            if (data.history && data.history.length > 0) checkNotifications(data.history[0]);
+            const query = queryEl.value;
+            const customStore = document.getElementById('custom-store')?.value.trim() || '';
+            const minPrice = document.getElementById('min-price')?.value.trim() || ''; 
+            const maxPrice = document.getElementById('max-price')?.value.trim() || ''; 
+            const condition = document.getElementById('condition-val')?.value || 'any';
 
-            const list = document.getElementById('history-list');
-            const savedIds = (data.saved || []).map(s => s.id);
+            const statusEl = document.getElementById('scanStatus');
+            const btn = document.getElementById('scan-btn');
+            const userEmail = localStorage.getItem('rr_user_email'); 
 
-            if (list && data.history) {
-                let htmlContent = '';
-                data.history.slice(0, 5).forEach((deal, index) => {
-                    const diffMs = Date.now() - (deal.timestamp || Date.now());
-                    const timeText = Math.floor(diffMs / 60000) < 1 ? "< 1 min" : `${Math.floor(diffMs / 60000)} min`;
-                    const score = deal.score || 50;
-                    const scoreColor = score >= 80 ? 'bg-green-500' : (score < 45 ? 'bg-red-600' : 'bg-blue-500');
-                    const dealEsc = encodeURIComponent(JSON.stringify(deal)).replace(/'/g, "%27");
-                    const isSaved = savedIds.includes(deal.id);
-                    
-                    htmlContent += `
-                        <div onclick="openDetail('${dealEsc}')" class="glass-panel p-5 rounded-xl transition-all border border-white/5 hover:border-blue-500/30 cursor-pointer group relative" style="opacity: ${1 - index*0.15}">
-                            <div class="flex justify-between items-start">
-                                <div class="flex flex-col">
-                                    <span class="text-[10px] text-blue-400 font-bold uppercase">${deal.store || 'WEB'}</span>
-                                    <h3 class="text-white font-bold text-sm leading-tight mt-1 group-hover:text-blue-400 line-clamp-2 pr-8">${deal.title}</h3>
-                                </div>
-                                <div class="text-[9px] font-mono text-gray-600 pt-1">${timeText}</div>
-                            </div>
-                            <div class="flex justify-between items-end mt-4">
-                                <span class="text-2xl font-black text-white tracking-tighter">${deal.price}</span>
-                                <div class="flex items-center gap-2">
-                                    ${isSaved ? '<button class="text-green-500 border border-green-500/50 bg-green-500/10 p-2 rounded-lg">✓</button>' : 
-                                    `<button onclick="saveScanFromIndex(event, '${dealEsc}', this)" class="bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-all">💾</button>`}
-                                    <span class="text-blue-500 text-xs font-bold uppercase tracking-widest bg-blue-500/10 px-2 py-2 rounded border border-blue-500/20">Detail ↗</span>
-                                </div>
-                            </div>
-                            <div class="w-full h-1 bg-white/5 rounded-full mt-3 overflow-hidden">
-                                <div class="h-full ${scoreColor}" style="width: ${score}%"></div>
-                            </div>
-                        </div>`;
-                });
-                list.innerHTML = htmlContent;
+            if(!query) { if(statusEl) statusEl.innerText = "⚠️ Enter product name"; return; }
+            
+            isWaitingForScan = true; 
+            setTimeout(() => { isWaitingForScan = false; }, 60000);
+            
+            if(btn) btn.disabled = true;
+            if(statusEl) {
+                statusEl.className = "text-center text-xs font-mono h-5 text-blue-400 animate-pulse";
+                statusEl.innerText = "> Establishing secure uplink...";
             }
-        } catch (e) { console.error("Fetch Error:", e); }
-    }
+            
+            let stores = customStore ? [customStore] : ['ebay'];
+            
+            try {
+                const response = await fetch('/api/request_scan', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('rr_auth_token')}`
+                    },
+                    body: JSON.stringify({ 
+                        query: query, 
+                        stores: stores,
+                        ownerEmail: userEmail || 'system', 
+                        maxPrice: maxPrice,
+                        condition: condition
+                    })
+                });
 
-    async function saveScanFromIndex(event, dealDataEscaped, btn) {
-        event.stopPropagation();
-        const token = localStorage.getItem('rr_auth_token');
-        if (!token) { alert("Log in to save scans!"); return; }
-        const deal = JSON.parse(decodeURIComponent(dealDataEscaped));
-        btn.innerHTML = `✓`;
-        btn.classList.add("text-green-500");
+                const data = await response.json();
+                
+                if (response.ok) {
+                    if(statusEl) {
+                        statusEl.innerText = `✅ Request received!`;
+                        statusEl.className = "text-center text-xs font-mono h-5 text-green-500";
+                    }
+                    if(queryEl) queryEl.value = "";
+                } else {
+                    if(statusEl) {
+                        statusEl.innerText = `⚠️ ${data.error || 'Limit reached'}`;
+                        statusEl.className = "text-center text-xs font-mono h-5 text-red-400";
+                    }
+                }
+            } catch (e) { 
+                if(statusEl) {
+                    statusEl.innerText = "❌ Connection error"; 
+                    statusEl.className = "text-center text-xs font-mono h-5 text-red-500";
+                }
+            } finally { 
+                setTimeout(() => { 
+                    if(btn) btn.disabled = false; 
+                    if(statusEl) statusEl.innerText = ""; 
+                }, 4000); 
+            }
+        }
 
-        try {
-            const res = await fetch('/api/save_scan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ deal })
+        function setCondition(value, clickedBtn) {
+            const conditionVal = document.getElementById('condition-val');
+            if(conditionVal) conditionVal.value = value;
+            
+            const buttons = document.querySelectorAll('.cond-btn');
+            buttons.forEach(btn => {
+                btn.className = "cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent transition-all";
             });
-            if (!res.ok) throw new Error();
-        } catch (e) { btn.innerHTML = "💾"; btn.classList.remove("text-green-500"); }
-    }
+            if(clickedBtn) {
+                clickedBtn.className = "cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-blue-600/30 text-white border border-blue-500/50 transition-all shadow-[0_0_10px_rgba(37,99,235,0.2)]";
+            }
+        }
 
-    async function requestScan() {
-        const query = document.getElementById('scanQuery').value;
-        const customStore = document.getElementById('custom-store').value.trim();
-        const maxPrice = document.getElementById('max-price').value.trim();
-        const condition = document.getElementById('condition-val').value;
-        const statusEl = document.getElementById('scanStatus');
-        const btn = document.getElementById('scan-btn');
-        const token = localStorage.getItem('rr_auth_token');
+        function openGuide() {
+            const modal = document.getElementById('guide-modal');
+            const modalContent = modal.querySelector('div');
+            modal.classList.remove('hidden');
+            setTimeout(() => { 
+                modal.classList.remove('opacity-0'); 
+                modalContent.classList.remove('scale-95'); 
+                modalContent.classList.add('scale-100'); 
+            }, 10);
+        }
 
-        if(!query) { statusEl.innerText = "⚠️ Enter product name"; return; }
-        isWaitingForScan = true;
-        btn.disabled = true;
-        statusEl.className = "text-center text-xs font-mono h-5 text-blue-400 animate-pulse";
-        
-        const moodMessages = ["> Secure uplink...", "> Store scan...", "> AI Extracting..."];
-        let moodIdx = 0; statusEl.innerText = moodMessages[0];
-        const moodInterval = setInterval(() => { moodIdx++; if (moodIdx < moodMessages.length) statusEl.innerText = moodMessages[moodIdx]; }, 1800);
+        function closeGuide() {
+            const modal = document.getElementById('guide-modal');
+            const modalContent = modal.querySelector('div');
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
 
-        try {
-            const res = await fetch('/api/request_scan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ query, stores: customStore ? [customStore] : ['ebay'], maxPrice, condition, ownerEmail: localStorage.getItem('rr_user_email') || 'system' })
+        // --- SHARE LOGIC ---
+        function shareDeal() {
+            const title = document.getElementById('modal-title').innerText;
+            const price = document.getElementById('modal-price').innerText;
+            const store = document.getElementById('modal-badge').innerText;
+            
+            const shareText = `🔥 Crazy deal on RigRadar!\n\n${title}\n💰 ${price} at ${store}\n\nScanner: https://rigradarai.com`;
+            
+            navigator.clipboard.writeText(shareText).then(() => {
+                const shareBtn = document.getElementById('modal-share');
+                const originalHtml = shareBtn.innerHTML;
+                
+                shareBtn.innerHTML = `<span class="text-green-400 font-bold text-sm">COPIED!</span>`;
+                shareBtn.classList.add('border-green-500/50', 'bg-green-500/10');
+                
+                setTimeout(() => {
+                    shareBtn.innerHTML = originalHtml;
+                    shareBtn.classList.remove('border-green-500/50', 'bg-green-500/10');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
             });
-            const data = await res.json();
-            clearInterval(moodInterval);
-            if (res.ok) {
-                statusEl.innerText = "✅ Satellite deployed!";
-                statusEl.className = "text-center text-xs font-mono h-5 text-green-500";
-            } else { statusEl.innerText = `⚠️ ${data.error || 'Error'}`; statusEl.className = "text-center text-xs font-mono h-5 text-red-400"; }
-        } catch (e) { clearInterval(moodInterval); statusEl.innerText = "❌ Connection error"; } 
-        finally { setTimeout(() => { btn.disabled = false; statusEl.innerText = ""; }, 4000); }
-    }
+        }
 
-    function setCondition(value, clickedBtn) {
-        document.getElementById('condition-val').value = value;
-        document.querySelectorAll('.cond-btn').forEach(btn => btn.className = "cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-transparent text-gray-500 hover:text-gray-300 border border-transparent");
-        clickedBtn.className = "cond-btn flex-1 py-2.5 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-lg bg-blue-600/30 text-white border border-blue-500/50 shadow-[0_0_10px_rgba(37,99,235,0.2)]";
-    }
-
-    function openGuide() {
-        const modal = document.getElementById('guide-modal');
-        const modalContent = modal.querySelector('div');
-        modal.classList.remove('hidden');
-        setTimeout(() => { modal.classList.remove('opacity-0'); modalContent.classList.remove('scale-95'); modalContent.classList.add('scale-100'); }, 10);
-    }
-
-    function closeGuide() {
-        const modal = document.getElementById('guide-modal');
-        const modalContent = modal.querySelector('div');
-        modal.classList.add('opacity-0');
-        modalContent.classList.remove('scale-100'); modalContent.classList.add('scale-95');
-        setTimeout(() => modal.classList.add('hidden'), 300);
-    }
-
-    function shareDeal() {
-        const title = document.getElementById('modal-title').innerText;
-        const price = document.getElementById('modal-price').innerText;
-        const shareText = `🔥 Crazy deal on RigRadar!\n\n${title}\n💰 ${price}\n\nScanner: https://rigradarai.com`;
-        navigator.clipboard.writeText(shareText).then(() => {
-            const shareBtn = document.getElementById('modal-share');
-            const orig = shareBtn.innerHTML;
-            shareBtn.innerHTML = `<span class="text-green-400 text-sm">COPIED!</span>`;
-            setTimeout(() => shareBtn.innerHTML = orig, 2000);
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadLayout(); 
+            initChart();
+            await fetchLatestDeal();
+            setInterval(fetchLatestDeal, 10000); 
         });
-    }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        await loadLayout(); 
-        initChart();
-        await fetchLatestDeal();
-        setInterval(fetchLatestDeal, 15000); 
-    });
+</script>
 </body>
 </html>
