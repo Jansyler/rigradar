@@ -132,7 +132,7 @@
             btn.disabled = true;
 
             try {
-                const res = await fetch('/api/create-portal-session', {
+                const res = await fetch('/api/stripe?type=portal', {
                     method: 'POST'
                 });
 
