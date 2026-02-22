@@ -69,6 +69,7 @@ export default async function handler(req, res) {
 
     if (userEmail && userEmail !== 'undefined') {
         promises.push(redis.lrange(`user_history:${userEmail}`, 0, 9)); 
+      promises.push(redis.lrange(`saved_scans:${userEmail}`, 0, 49));
         // OPTIMALIZACE: Saved Items pro live feed nestahujeme, šetříme RAM a čas
     }
 
@@ -99,6 +100,8 @@ export default async function handler(req, res) {
         latest: results[0] || { price: "---", opinion: "No data", score: 50 },
         history: combinedHistory.slice(0, 10), // Posíláme jen 10 nejčastějších
         chartData: chartData,
+      userHistory: userHistory,
+        saved: savedItems,
         systemStatus: results[2]
     });
 
