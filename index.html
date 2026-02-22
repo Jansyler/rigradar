@@ -565,7 +565,7 @@ async function saveScanFromIndex(event, dealDataEscaped, btn) {
             btn.classList.add("text-green-500", "border-green-500/50");
 
             try {
-                const res = await fetch('/api/save_scan', {
+                const res = await fetch('/api/scans?action=save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }, // 🛡️ Removed Auth Header
                     body: JSON.stringify({ deal }) 
