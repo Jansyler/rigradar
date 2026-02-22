@@ -31,29 +31,38 @@ export default async function handler(req, res) {
 
     try {
         const savedKey = `saved_scans:${verifiedEmail}`;
+        
+        // 2. Načteme existující scany pro kontrolu duplikátů
         const currentSaved = await redis.lrange(savedKey, 0, -1);
         
-        // Zabráníme duplikátům
+        // 🛡️ Robustní kontrola duplikátů
         const alreadySaved = currentSaved.some(item => {
             try {
+                // Upstash může vrátit objekt nebo string, ošetříme obojí
                 const parsed = typeof item === 'string' ? JSON.parse(item) : item;
                 return String(parsed.id) === String(deal.id);
-            } catch (e) { return false; }
+            } catch (e) { 
+                return false; 
+            }
         });
 
         if (alreadySaved) {
              return res.status(200).json({ status: 'Already saved' });
         }
 
-        // Uložíme jako JSON string
-        await redis.lpush(savedKey, JSON.stringify(deal));
-        // Můžeme omezit historii na 50 oblíbených
+        // 3. ULOŽENÍ (Důležité: Ukládáme jako STRING, aby lrange fungovalo konzistentně)
+        const dealString = JSON.stringify(deal);
+        
+        // Přidáme na začátek seznamu
+        await redis.lpush(savedKey, dealString);
+        
+        // Omezíme na posledních 50 položek
         await redis.ltrim(savedKey, 0, 49);
         
-        return res.status(200).json({ status: 'Saved' });
+        return res.status(200).json({ status: 'Saved', id: deal.id });
 
     } catch (error) {
         console.error("Save Scan Error:", error);
-        return res.status(500).json({ error: 'Database error' });
+        return res.status(500).json({ error: 'Database error while saving' });
     }
 }
