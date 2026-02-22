@@ -8,55 +8,45 @@ const redis = new Redis({
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).end();
 
-    // 1. ZÍSKÁNÍ A OVĚŘENÍ TVÉHO SESSION TOKENU
-    const authHeader = req.headers.authorization;
+    // 1. ZÍSKÁNÍ TOKENU Z HTTP-ONLY COOKIE
+    const cookieHeader = req.headers.cookie || '';
+    const tokenMatch = cookieHeader.match(/rr_auth_token=([^;]+)/);
+    const token = tokenMatch ? tokenMatch[1] : null;
+
+    if (!token) return res.status(401).json({ error: 'Unauthorized. No cookie.' });
+
     let verifiedEmail = null;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
-        try {
-            // Najdeme email v databázi podle tokenu
-            verifiedEmail = await redis.get(`session:${token}`);
-        } catch (e) {
-            console.error("Redis verification failed:", e);
-        }
+    try {
+        verifiedEmail = await redis.get(`session:${token}`);
+    } catch (e) {
+        console.error("Redis verification failed:", e);
     }
 
-    // Pokud nemáme ověřený email, nepustíme ho dál
     if (!verifiedEmail) {
-        return res.status(401).json({ error: 'Unauthorized. Please log in again.' });
+        return res.status(401).json({ error: 'Unauthorized. Session expired.' });
     }
 
-    const { dealId } = req.body; // Email už z těla nepotřebujeme, máme ho z Redisu!
+    const { dealId } = req.body; 
     if (!dealId) return res.status(400).json({ error: 'Missing dealId' });
 
     try {
         const savedKey = `saved_scans:${verifiedEmail}`;
-        
-        // 2. Načteme všechny uložené scany
         const currentSaved = await redis.lrange(savedKey, 0, -1);
         
-        // 3. Vyfiltrujeme ten, který chceme smazat (převádíme na String pro 100% shodu)
         const newSavedList = currentSaved.filter(item => {
             try {
                 const parsed = typeof item === 'string' ? JSON.parse(item) : item;
                 return String(parsed.id) !== String(dealId); 
-            } catch (e) { 
-                return true; 
-            }
+            } catch (e) { return true; }
         });
 
-        // 4. Pokud se délka seznamu nezměnila, nic jsme nesmazali
         if (currentSaved.length === newSavedList.length) {
              return res.status(200).json({ status: 'Not found or already deleted' });
         }
 
-        // 5. Přepíšeme seznam v Redisu
         await redis.del(savedKey); 
         
         if (newSavedList.length > 0) {
-            // Použijeme rpush pro zachování pořadí. 
-            // Důležité: Upstash Redis rpush s rozbaleným polem (...list) funguje skvěle.
             await redis.rpush(savedKey, ...newSavedList);
         }
         
