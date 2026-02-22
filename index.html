@@ -482,8 +482,8 @@ async function fetchLatestDeal() {
 
                 // --- LIST UPDATE ---
                 const list = document.getElementById('history-list');
-                const savedIds = (data.saved || []).map(s => String(s.id));
 
+const savedIds = (data.saved || []).map(s => String(s.id));
                 if (list && data.history && Array.isArray(data.history)) {
                     const limitedHistory = data.history.slice(0, 5); 
                     let htmlContent = '';
@@ -551,53 +551,56 @@ async function fetchLatestDeal() {
         }
 
 async function saveScanFromIndex(event, dealDataEscaped, btn) {
-            event.stopPropagation(); 
-            
-            // 🛡️ Removed token check. Now we check if email exists to verify UI state
-            const email = localStorage.getItem('rr_user_email');
-            if (!email) { 
-                alert("⚠️ Please log in to save scans!");
-                return; 
-            }
+    event.stopPropagation(); 
+    
+    const email = localStorage.getItem('rr_user_email');
+    if (!email) { 
+        alert("⚠️ Please log in to save scans!");
+        return; 
+    }
 
-            const deal = JSON.parse(decodeURIComponent(dealDataEscaped));
-            
-            const originalContent = btn.innerHTML;
-            btn.innerHTML = `✓`;
-            btn.classList.add("text-green-500", "border-green-500/50");
+    const deal = JSON.parse(decodeURIComponent(dealDataEscaped));
+    const originalContent = btn.innerHTML;
+    
+    // Okamžitá vizuální zpětná vazba
+    btn.innerHTML = `✓`;
+    btn.disabled = true;
+    btn.classList.add("text-green-500", "border-green-500/50");
 
-            try {
-                const res = await fetch('/api/save_scan', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }, // 🛡️ Removed Auth Header
-                    body: JSON.stringify({ deal }) 
-                });
-                
-                if(!res.ok) {
-                    btn.innerHTML = "❌";
-                    btn.classList.remove("text-green-500", "border-green-500/50");
-                    btn.classList.add("text-red-500");
-                    if (res.status === 401) alert("Session expired. Log in again.");
-                    
-                    setTimeout(() => {
-                        btn.innerHTML = originalContent;
-                        btn.classList.remove("text-red-500");
-                    }, 2000);
-                } else {
-                    btn.onclick = null; // Disable button after save
-                    btn.title = "Saved";
-                }
-            } catch (e) {
-                console.error(e);
-                btn.innerHTML = "❌";
-                btn.classList.remove("text-green-500", "border-green-500/50");
-                btn.classList.add("text-red-500");
-                setTimeout(() => {
-                    btn.innerHTML = originalContent;
-                    btn.classList.remove("text-red-500");
-                }, 2000);
-            }
+    try {
+        const res = await fetch('/api/save_scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deal }) 
+        });
+        
+        if (res.ok) {
+            // 🛡️ KLÍČOVÝ KROK: Musíš okamžitě vynutit stažení nových dat,
+            // aby se v lokálním poli 'data.saved' objevilo nové ID.
+            await fetchLatestDeal(); 
+            showToast("Saved to archives", "success");
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = "❌";
+            btn.classList.remove("text-green-500", "border-green-500/50");
+            btn.classList.add("text-red-500");
+            
+            if (res.status === 401) alert("Session expired. Log in again.");
+            
+            setTimeout(() => {
+                btn.innerHTML = originalContent;
+                btn.classList.remove("text-red-500");
+            }, 2000);
         }
+    } catch (e) {
+        console.error(e);
+        btn.disabled = false;
+        btn.innerHTML = "❌";
+        setTimeout(() => {
+            btn.innerHTML = originalContent;
+        }, 2000);
+    }
+}
 
 async function requestScan() {
             const queryEl = document.getElementById('scanQuery');
