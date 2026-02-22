@@ -1,39 +1,36 @@
 // --- ZACHYCENÍ GITHUB LOGINU Z URL v auth.js ---
 const urlParams = new URLSearchParams(window.location.search);
-const urlToken = urlParams.get('token');
 const urlEmail = urlParams.get('email');
-const urlPic = urlParams.get('pic'); // PŘIDÁNO: zachycení fotky
+const urlPic = urlParams.get('pic'); 
 
-if (urlToken && urlEmail) {
-    localStorage.setItem('rr_auth_token', urlToken);
+// 🛡️ Změna: Už nehledáme token v URL, spoléháme na HttpOnly cookie
+if (urlEmail) {
     localStorage.setItem('rr_user_email', urlEmail);
     
-    // Pokud v URL přišla i fotka, uložíme ji
     if (urlPic) {
         localStorage.setItem('rr_user_pic', urlPic);
     }
     
     window.history.replaceState({}, document.title, window.location.pathname);
 }
+
 // 1. Synchronizace Premium statusu se serverem
-async function syncPremiumStatus(token) {
-    if (!token) token = localStorage.getItem('rr_auth_token');
-    if (!token) return;
+async function syncPremiumStatus() {
+    const email = localStorage.getItem('rr_user_email');
+    if (!email) return;
 
     try {
+        // 🛡️ Změna: Prohlížeč automaticky pošle HttpOnly cookie, nepotřebujeme "Authorization" header
         const res = await fetch('/api/check-premium', {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
+            method: 'GET'
         });
 
         if (res.ok) {
             const data = await res.json();
-            // Uložíme aktuální stav do localStorage
             localStorage.setItem('rr_premium', data.isPremium ? 'true' : 'false');
-            // Aktualizujeme UI, kdyby se něco změnilo
             updateAuthUI();
         } else if (res.status === 401) {
-            // Token vypršel nebo je neplatný -> odhlásit uživatele
+            // Cookie vypršela nebo je neplatná -> odhlásit uživatele
             logout(); 
         }
     } catch (e) {
@@ -46,7 +43,9 @@ function logout() {
     localStorage.removeItem('rr_user_email');
     localStorage.removeItem('rr_user_pic');
     localStorage.removeItem('rr_premium');
-    localStorage.removeItem('rr_auth_token'); // Smažeme náš nový Session Token
+    
+    // Poznámka: Aby se HttpOnly cookie smazala i ze serveru, bude potřeba zavolat /api/logout.
+    // Prozatím smazání local dat stačí pro odhlášení z UI.
     location.reload();
 }
 
@@ -56,22 +55,18 @@ function updateAuthUI(retryCount = 0) {
     let pic = localStorage.getItem('rr_user_pic');
     const isPremium = localStorage.getItem('rr_premium') === 'true';
     
-    // Čistší kontrola profilovky
     if (!pic || pic === 'undefined' || pic === 'null') {
-        // Generuj jen pokud opravdu nic nemáme
         pic = `https://api.dicebear.com/7.x/avataaars/svg?seed=${email || 'user'}`;
     }
     
     const desktopAuth = document.getElementById('auth-section');
     const mobileAuth = document.getElementById('auth-section-mobile');
 
-    // Pokud header ještě není načtený, zkusíme to znovu za 50ms
     if ((!desktopAuth || !mobileAuth) && retryCount < 10) {
         setTimeout(() => updateAuthUI(retryCount + 1), 50);
         return;
     }
 
-// HTML šablona pro přihlášeného uživatele (DESKTOP)
     const userHtml = email ? `
         <div class="flex items-center gap-2 bg-white/5 p-1 pr-3 rounded-full border ${isPremium ? 'border-yellow-500/50' : 'border-white/10'} hover:bg-white/10 transition-all cursor-pointer group">
             <div onclick="window.location.href='account.html'" class="flex items-center gap-2">
@@ -84,6 +79,7 @@ function updateAuthUI(retryCount = 0) {
             <button onclick="logout()" class="text-gray-500 hover:text-red-500 text-[10px] font-black px-1 transition-colors" title="Log Out">✕</button>
         </div>
     ` : `<button onclick="window.location.href='login.html'" class="text-white text-xs font-bold border border-white/20 px-6 py-2 rounded-xl bg-[#111] hover:bg-white/10 transition-all">Log In</button>`;
+    
     if (desktopAuth) desktopAuth.innerHTML = userHtml;
 
     if (mobileAuth) {
@@ -105,7 +101,6 @@ function updateAuthUI(retryCount = 0) {
                 </div>
             `;
         } else {
-            // 🔴 OPRAVA: Tlačítko nyní odkazuje na login.html
             mobileAuth.innerHTML = `<button onclick="window.location.href='login.html'" class="text-white text-lg font-bold border border-white/20 px-8 py-3 rounded-xl w-full bg-[#111]">Log In</button>`;
         }
     }
@@ -151,16 +146,14 @@ function acceptCookies() { localStorage.setItem('rigradar_tos', 'true'); hideBan
 function hideBanner() { const b = document.getElementById('cookie-banner'); if(b) b.style.display = 'none'; }
 function declineCookies() { alert("You must accept the Terms of Service."); window.location.href = 'index.html'; }
 
-// 🔴 OPRAVA: Původní funkce loginWithGoogle teď rovnou přesměruje uživatele na login.html
 function loginWithGoogle() { 
     window.location.href = 'login.html';
 }
 
-// 7. Initialization (Přejmenováno pro kompatibilitu, ale už neřeší Google Auth)
+// 7. Initialization
 function initGoogleAuth() {
     updateAuthUI();
 
-    // Kontrola pro Cookie Banner
     const banner = document.getElementById('cookie-banner');
     if (banner && localStorage.getItem('rigradar_tos') !== 'true') {
         banner.style.display = 'flex';
@@ -168,31 +161,28 @@ function initGoogleAuth() {
     }
 }
 
-// 8. CENTRALIZOVANÉ NAČÍTÁNÍ LAYOUTU (Header & Footer)
+// 8. CENTRALIZOVANÉ NAČÍTÁNÍ LAYOUTU
 async function loadLayout() {
     try {
-        // 1. Načíst Header
         const headerRes = await fetch('header.html');
         if (headerRes.ok) {
             document.getElementById('header-placeholder').innerHTML = await headerRes.text();
             updateAuthUI();
         }
 
-        // 2. Načíst Footer
         const footerPlaceholder = document.getElementById('footer-placeholder');
         if (footerPlaceholder) {
             const footerRes = await fetch('footer.html');
             if (footerRes.ok) footerPlaceholder.innerHTML = await footerRes.text();
         }
 
-        // 3. Spuštění inicializace UI
         if (typeof initGoogleAuth === 'function') {
             initGoogleAuth();
             
-            // Zkontrolujeme premium status při každém načtení stránky přes náš nový Session Token
-            const token = localStorage.getItem('rr_auth_token');
-            if (token) {
-                await syncPremiumStatus(token);
+            // 🛡️ Změna: Už nehledáme token, ptáme se API rovnou
+            const email = localStorage.getItem('rr_user_email');
+            if (email) {
+                await syncPremiumStatus();
             }
         }
 
