@@ -231,15 +231,13 @@
         let activeChatId = null;
         let allChats = {};
 
-        async function loadSidebar() {
+async function loadSidebar() {
             const email = localStorage.getItem('rr_user_email');
-            const token = localStorage.getItem('rr_auth_token');
-            if (!email || !token) return;
+            if (!email) return; // 🛡️ Removed token check
 
             try {
-                const res = await fetch('/api/chat', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                // 🛡️ Removed Authorization header, cookie handles it
+                const res = await fetch('/api/chat'); 
                 const data = await res.json();
                 allChats = data.chats || {};
                 
@@ -261,7 +259,7 @@
                 console.error("Failed to load sidebar", e);
             }
         }
-        async function switchChat(id) {
+async function switchChat(id) {
             activeChatId = id;
             const chatBox = document.getElementById('chat-box');
             
@@ -275,14 +273,11 @@
                     <span class="text-[10px] uppercase tracking-widest text-blue-400 animate-pulse font-bold">Decrypting logs...</span>
                 </div>`;
             
-            const token = localStorage.getItem('rr_auth_token');
             try {
-                const res = await fetch(`/api/chat?chatId=${id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                // 🛡️ Removed Authorization header
+                const res = await fetch(`/api/chat?chatId=${id}`);
                 const data = await res.json();
                 
-                // Odstraníme loading text, ale uvítání necháme!
                 const loadingEl = document.getElementById('loading-history');
                 if (loadingEl) loadingEl.remove();
                 
@@ -313,13 +308,13 @@
             loadSidebar(); 
         }
 
-        async function sendMessage() {
+async function sendMessage() {
             const input = document.getElementById('user-input');
             const email = localStorage.getItem('rr_user_email');
-            const token = localStorage.getItem('rr_auth_token');
             const message = input.value.trim();
+            
             if(!message) return;
-            if(!email || !token) { alert("Please log in first!"); return; }
+            if(!email) { alert("Please log in first!"); return; } // 🛡️ Removed token check
 
             const chatBox = document.getElementById('chat-box');
             chatBox.innerHTML += `<div class="msg-user p-4 rounded-2xl rounded-tr-none max-w-[85%] self-end ml-auto text-white text-sm shadow-md mb-2">${message}</div>`;
@@ -333,7 +328,8 @@
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST', 
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    // 🛡️ Removed Authorization header
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message, email, chatId: activeChatId, lang: 'en' })
                 });
                 const data = await response.json();
@@ -371,7 +367,7 @@
         }
 
         // --- RADAR LOGIC ---
-        async function requestScan() {
+async function requestScan() {
             const query = document.getElementById('scanQuery').value;
             const customStore = document.getElementById('custom-store').value.trim();
             const minPrice = document.getElementById('min-price').value.trim();
@@ -384,12 +380,11 @@
 
             if(!query) { statusEl.innerText = "⚠️ Enter product name"; return; }
             
-            // 🚀 ZRYCHLENÍ POLLINGU PŘI SKENOVÁNÍ
             startPolling(3000); 
-            setTimeout(() => { if (currentIntervalTime === 3000) startPolling(60000); }, 120000); // Pojistka na 2 minuty
+            setTimeout(() => { if (currentIntervalTime === 3000) startPolling(60000); }, 120000); 
             
             btn.disabled = true;
-            if (container) container.classList.add('scanning'); // Přidá laser efekt z CSS
+            if (container) container.classList.add('scanning'); 
             statusEl.className = "text-center text-xs font-mono h-4 text-blue-400 animate-pulse";
             
             const moodMessages = ["> Initializing...", "> Bypassing protection...", "> Analyzing AI data...", "> Extracting price..."];
@@ -402,7 +397,8 @@
             try {
                 const response = await fetch('/api/request_scan', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('rr_auth_token')}` },
+                    // 🛡️ Removed Authorization header
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         query: query, 
                         stores: customStore ? [customStore] : ['ebay'],
@@ -420,7 +416,7 @@
                 } else {
                     statusEl.innerText = `⚠️ ${data.error || 'Limit reached or Error'}`;
                     statusEl.className = "text-center text-xs font-mono h-4 text-red-400";
-                    startPolling(60000); // Zpomalit při chybě
+                    startPolling(60000); 
                 }
             } catch (e) { 
                 clearInterval(moodInterval);
