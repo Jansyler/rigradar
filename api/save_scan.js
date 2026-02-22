@@ -8,53 +8,52 @@ const redis = new Redis({
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).end();
 
-    // 1. ZÍSKÁNÍ A OVĚŘENÍ TVÉHO SESSION TOKENU (Z REDISU)
-    const authHeader = req.headers.authorization;
-    let verifiedEmail = null;
+    // 1. ZÍSKÁNÍ TOKENU Z HTTP-ONLY COOKIE
+    const cookieHeader = req.headers.cookie || '';
+    const tokenMatch = cookieHeader.match(/rr_auth_token=([^;]+)/);
+    const token = tokenMatch ? tokenMatch[1] : null;
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
-        try {
-            // Hledáme email v databázi podle tokenu
-            verifiedEmail = await redis.get(`session:${token}`);
-        } catch (e) {
-            console.error("Redis verification failed:", e);
-        }
+    if (!token) return res.status(401).json({ error: 'Unauthorized. No cookie.' });
+
+    let verifiedEmail = null;
+    try {
+        verifiedEmail = await redis.get(`session:${token}`);
+    } catch (e) {
+        console.error("Redis verification failed:", e);
     }
 
     if (!verifiedEmail) {
-        return res.status(401).json({ error: 'Unauthorized. Please log in again.' });
+        return res.status(401).json({ error: 'Unauthorized. Session expired.' });
     }
 
-    // 2. LOGIKA UKLÁDÁNÍ
     const { deal } = req.body;
-    if (!deal) return res.status(400).json({ error: 'Missing deal data' });
+    if (!deal || !deal.id) return res.status(400).json({ error: 'Invalid deal data' });
 
     try {
         const savedKey = `saved_scans:${verifiedEmail}`;
-        
-        // Kontrola duplicity (aby uživatel neměl stejnou věc 10x)
         const currentSaved = await redis.lrange(savedKey, 0, -1);
-        const isDuplicate = currentSaved.some(item => {
+        
+        // Zabráníme duplikátům
+        const alreadySaved = currentSaved.some(item => {
             try {
-                const parsed = (typeof item === 'string') ? JSON.parse(item) : item;
-                return parsed.id === deal.id || (parsed.title === deal.title && parsed.price === deal.price);
-            } catch { return false; }
+                const parsed = typeof item === 'string' ? JSON.parse(item) : item;
+                return String(parsed.id) === String(deal.id);
+            } catch (e) { return false; }
         });
 
-        if (isDuplicate) return res.status(200).json({ status: 'Already saved' });
+        if (alreadySaved) {
+             return res.status(200).json({ status: 'Already saved' });
+        }
 
-        // Uložení
-        deal.isSaved = true;
+        // Uložíme jako JSON string
         await redis.lpush(savedKey, JSON.stringify(deal));
-        
-        // Pojistka: Držíme maximálně 50 uložených věcí na uživatele
+        // Můžeme omezit historii na 50 oblíbených
         await redis.ltrim(savedKey, 0, 49);
-
+        
         return res.status(200).json({ status: 'Saved' });
 
     } catch (error) {
-        console.error("Save Error:", error);
+        console.error("Save Scan Error:", error);
         return res.status(500).json({ error: 'Database error' });
     }
 }
