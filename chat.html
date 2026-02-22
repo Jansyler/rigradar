@@ -276,14 +276,18 @@
                 console.error("Failed to load sidebar", e);
             }
         }
-
-        // OPRAVA: Už nehledáme ve velkém JSONu, ale ptáme se backendu na historii jednoho chatu
+// OPRAVA: Při přepnutí chatu vždy vložíme uvítací zprávu jako první
         async function switchChat(id) {
             activeChatId = id;
             const chatBox = document.getElementById('chat-box');
             
+            // Vyčistíme chat a vložíme statické uvítání (aby tam bylo vždy)
             chatBox.innerHTML = `
-                <div class="flex items-center gap-2 mb-3 border-b border-white/5 pb-3">
+                <div class="msg-ai p-5 rounded-2xl rounded-tl-none max-w-[90%] text-gray-300 text-sm leading-relaxed mb-4">
+                    <div class="text-[10px] uppercase tracking-wider text-blue-500 font-bold mb-1">RigRadar AI</div>
+                    Hello! I'm your personal hardware advisor. I've decrypted our previous logs. How can I help you continue?
+                </div>
+                <div id="loading-history" class="flex items-center gap-2 mb-3 border-b border-white/5 pb-3">
                     <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] shadow-[0_0_10px_rgba(37,99,235,0.5)]">🤖</div>
                     <span class="text-[10px] uppercase tracking-widest text-blue-400 animate-pulse font-bold">Decrypting logs...</span>
                 </div>`;
@@ -294,7 +298,10 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
-                chatBox.innerHTML = ''; 
+                
+                // Odstraníme loading text, ale uvítání necháme!
+                const loadingEl = document.getElementById('loading-history');
+                if (loadingEl) loadingEl.remove();
                 
                 if (data.history && data.history.length > 0) {
                     data.history.forEach(msg => {
@@ -308,7 +315,7 @@
                 chatBox.scrollTop = chatBox.scrollHeight;
                 loadSidebar(); 
             } catch (e) {
-                chatBox.innerHTML = '<div class="text-center text-red-500 text-xs mt-4">Failed to establish connection to archives.</div>';
+                chatBox.innerHTML += '<div class="text-center text-red-500 text-xs mt-4">Failed to establish connection to archives.</div>';
             }
         }
 
