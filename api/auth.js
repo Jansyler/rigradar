@@ -15,15 +15,23 @@ const generateSession = async (email) => {
     return sessionToken;
 };
 
+// 🛡️ NEW: Helper function to set the HttpOnly cookie
+const setCookie = (res, token) => {
+    const maxAge = 60 * 60 * 24 * 7; // 7 Days
+    // HttpOnly prevents JS access. Secure requires HTTPS. SameSite=Lax allows redirects.
+    const cookieStr = `rr_auth_token=${token}; HttpOnly; Secure; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+    res.setHeader('Set-Cookie', cookieStr);
+};
+
 export default async function handler(req, res) {
     const { action } = req.query;
 
     try {
-if (req.method === 'GET' && action === 'github_callback') {
+        // --- 1. GITHUB LOGIN ---
+        if (req.method === 'GET' && action === 'github_callback') {
             const { code } = req.query;
             if (!code) return res.status(400).send("No code provided by GitHub.");
 
-            // A) Výměna kódu za GitHub Access Token
             const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
                 method: 'POST',
                 headers: {
@@ -41,7 +49,6 @@ if (req.method === 'GET' && action === 'github_callback') {
             const accessToken = tokenData.access_token;
             if (!accessToken) return res.status(400).send("GitHub authentication failed.");
 
-            // --- TADY JE TA ZMĚNA: Získání dat o uživateli (včetně fotky) ---
             const userResponse = await fetch('https://api.github.com/user', {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
@@ -49,9 +56,8 @@ if (req.method === 'GET' && action === 'github_callback') {
                 }
             });
             const userData = await userResponse.json();
-            const githubPic = userData.avatar_url; // Získání URL profilovky
+            const githubPic = userData.avatar_url; 
 
-            // B) Získání e-mailu uživatele z GitHubu
             const emailResponse = await fetch('https://api.github.com/user/emails', {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
@@ -66,15 +72,16 @@ if (req.method === 'GET' && action === 'github_callback') {
             }
 
             const email = primaryEmailObj.email;
-
-            // C) Vytvoření naší RigRadar Session v Redisu
             const sessionToken = await generateSession(email);
 
-            // D) Přesměrování zpět s tokenem, emailem A NOVĚ I S FOTKOU v URL
-            return res.redirect(`/chat.html?token=${sessionToken}&email=${encodeURIComponent(email)}&pic=${encodeURIComponent(githubPic)}`);
+            // 🛡️ FIX: Attach session securely to the browser!
+            setCookie(res, sessionToken);
+
+            // 🛡️ FIX: Redirect WITHOUT the token in the URL! (Only email & pic for UI purposes)
+            return res.redirect(`/chat.html?email=${encodeURIComponent(email)}&pic=${encodeURIComponent(githubPic)}`);
         }
 
-        // --- VŠECHNY OSTATNÍ AKCE MUSÍ BÝT POST ---
+        // --- ALL OTHER ACTIONS MUST BE POST ---
         if (req.method !== 'POST') return res.status(405).end();
 
         // --- 2. GOOGLE LOGIN ---
@@ -87,10 +94,13 @@ if (req.method === 'GET' && action === 'github_callback') {
             const email = ticket.getPayload().email;
             
             const sessionToken = await generateSession(email);
-            return res.status(200).json({ token: sessionToken, email });
+            
+            // 🛡️ FIX: Attach session securely
+            setCookie(res, sessionToken);
+            return res.status(200).json({ success: true, email });
         }
         
-        // --- 3. VLASTNÍ REGISTRACE ---
+        // --- 3. CUSTOM REGISTER ---
         if (action === 'register') {
             const { email, password } = req.body;
             if (!email || !password || password.length < 6) {
@@ -106,10 +116,13 @@ if (req.method === 'GET' && action === 'github_callback') {
             await redis.set(`user_auth:${email}`, `${salt}:${hash}`);
             
             const sessionToken = await generateSession(email);
-            return res.status(200).json({ token: sessionToken, email });
+            
+            // 🛡️ FIX: Attach session securely
+            setCookie(res, sessionToken);
+            return res.status(200).json({ success: true, email });
         }
 
-        // --- 4. VLASTNÍ PŘIHLÁŠENÍ ---
+        // --- 4. CUSTOM LOGIN ---
         if (action === 'login') {
             const { email, password } = req.body;
             
@@ -124,7 +137,10 @@ if (req.method === 'GET' && action === 'github_callback') {
             }
             
             const sessionToken = await generateSession(email);
-            return res.status(200).json({ token: sessionToken, email });
+            
+            // 🛡️ FIX: Attach session securely
+            setCookie(res, sessionToken);
+            return res.status(200).json({ success: true, email });
         }
 
         res.status(400).json({ error: "Unknown action" });
