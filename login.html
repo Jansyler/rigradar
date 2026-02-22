@@ -112,7 +112,7 @@
                 if (res.ok) {
                     localStorage.setItem('rr_auth_token', data.token);
                     localStorage.setItem('rr_user_email', data.email);
-                    window.location.href = 'index.html'; 
+                    window.location.href = 'chat.html'; 
                 } else {
                     showError(data.error || "Authentication failed.");
                     document.getElementById(`btn-${action}`).innerText = action === 'login' ? "Sign In" : "Create Account";
