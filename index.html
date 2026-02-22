@@ -425,132 +425,127 @@ notification.onclick = () => {
 
 
 async function fetchLatestDeal() {
-            try {
-                // 🛡️ Removed manual user email query param (handled securely by cookies on the backend now)
-                const res = await fetch(`/api/update_price`);
-                const data = await res.json();
-                
-                // NOTIFICATIONS
-                if (data.history && data.history.length > 0) {
-                    checkNotifications(data.history[0]);
-                } else if (data.latest) {
-                    checkNotifications(data.latest);
-                }
-
-                // --- MAIN CARD (TOP CATCH) ---
-                if (data.latest) {
-                    const priceEl = document.getElementById('top-catch-price');
-                    const opinionEl = document.getElementById('top-catch-opinion');
-                    const titleEl = document.getElementById('top-catch-title');
-                    const storeEl = document.getElementById('top-catch-store');
-
-                    let cleanPrice = data.latest.price || "---";
-                    if(cleanPrice.includes(":")) cleanPrice = cleanPrice.split(":")[1].trim();
-
-                    if(priceEl) priceEl.innerText = cleanPrice;
-                    if(opinionEl) opinionEl.innerText = `"${data.latest.opinion || "Scanning market..."}"`;
-                    if(titleEl) titleEl.innerText = data.latest.title || "Latest Catch";
-                    if(storeEl) storeEl.innerText = data.latest.store || "WEB";
-                    
-                    // 🛡️ UPDATE CHART VIA MARKET.JS
-                    if (data.history && data.history.length > 0) {
-                        const activeTitle = data.latest.title || "Unknown Product";
-                        const keywords = activeTitle.split(' ').slice(0, 2).join(' ').toLowerCase();
-                        const allDeals = [data.latest, ...data.history];
-                        
-                        const relevantDeals = allDeals.filter(d => d.title && d.title.toLowerCase().includes(keywords));
-
-                        const chartPrices = [];
-                        const chartLabels = [];
-
-                        relevantDeals.forEach(d => {
-                            const p = parseFloat(String(d.price).replace(/[^0-9.]/g, ''));
-                            if (!isNaN(p)) {
-                                chartPrices.push(p);
-                                const date = new Date(d.timestamp);
-                                const day = date.toLocaleDateString('en-US', { weekday: 'short' });
-                                const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                                chartLabels.push(`${day} ${time}`);
-                            }
-                        });
-
-                        if (chartPrices.length > 0) {
-                            const chartTitle = activeTitle.split(' ').slice(0, 6).join(' ');
-                            MarketUI.updateChart(chartPrices.reverse(), chartLabels.reverse(), chartTitle);
-                        }
-                    }
-                }
-
-                // --- LIST UPDATE ---
-                const list = document.getElementById('history-list');
-                const savedIds = (data.saved || []).map(s => String(s.id));
-
-                if (list && data.history && Array.isArray(data.history)) {
-                    const limitedHistory = data.history.slice(0, 5); 
-                    let htmlContent = '';
-                    limitedHistory.forEach((deal, index) => {
-                        let timeText = "Now";
-                        if (deal.timestamp) {
-                            const diffMs = Date.now() - deal.timestamp;
-                            const minutes = Math.floor(diffMs / 60000);
-                            timeText = minutes < 1 ? "< 1 min" : `${minutes} min`;
-                        }
-                        const score = deal.score || 50; 
-                        let scoreColor = score >= 80 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]' : (score < 45 ? 'bg-red-600' : 'bg-blue-500');
-                        let listPrice = deal.price || "---";
-                        if(listPrice.includes(":")) listPrice = listPrice.split(":")[1].trim();
-                        
-                        const dealDataEscaped = encodeURIComponent(JSON.stringify(deal))
-                            .replace(/'/g, "%27")
-                            .replace(/\(/g, "%28")
-                            .replace(/\)/g, "%29"); 
-                        
-                        const isSaved = savedIds.includes(String(deal.id));
-                        
-                        let saveButtonHtml;
-                        if (isSaved) {
-                            saveButtonHtml = `
-                            <button class="text-green-500 border border-green-500/50 bg-green-500/10 p-2 rounded-lg z-10 cursor-default" title="Already Saved">
-                                <span class="font-bold text-xs">✓</span>
-                            </button>`;
-                        } else {
-                            saveButtonHtml = `
-                            <button onclick="saveScanFromIndex(event, '${dealDataEscaped}', this)" class="bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-all z-10" title="Save to Archive">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
-                            </button>`;
-                        }
-
-                        // 🛡️ Updated onClick to MarketUI.openDetail
-                        htmlContent += `
-                            <div onclick="MarketUI.openDetail('${dealDataEscaped}')" class="glass-panel p-5 rounded-xl transition-all border border-white/5 hover:border-blue-500/30 new-item cursor-pointer group relative" style="opacity: ${1 - index*0.15}">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div class="flex flex-col">
-                                        <span class="text-[10px] text-blue-400 font-bold uppercase tracking-widest">${deal.store || 'WEB'}</span>
-                                        <h3 class="text-white font-bold text-sm leading-tight mt-1 group-hover:text-blue-400 transition-colors line-clamp-2 pr-8">${deal.title || 'Product'}</h3>
-                                    </div>
-                                    <div class="text-[9px] font-mono text-gray-600 pt-1 whitespace-nowrap">${timeText}</div>
-                                </div>
-                                <div class="flex justify-between items-end mt-4">
-                                    <div class="flex flex-col">
-                                        <span class="text-2xl font-black text-white tracking-tighter">${listPrice}</span>
-                                        <p class="text-[10px] text-gray-500 italic mt-1 max-w-[150px] truncate">"${deal.opinion}"</p>
-                                    </div>
-                                    
-                                    <div class="flex items-center gap-2">
-                                        ${saveButtonHtml}
-                                        <span class="text-blue-500 text-xs font-bold uppercase tracking-widest bg-blue-500/10 px-2 py-2 rounded border border-blue-500/20 group-hover:bg-blue-500 group-hover:text-white transition-all">Detail ↗</span>
-                                    </div>
-                                </div>
-                                <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-3">
-                                    <div class="h-full ${scoreColor} transition-all duration-1000" style="width: ${score}%"></div>
-                                </div>
-                            </div>`;
-                    });
-                    list.innerHTML = htmlContent;
-                }
-                return data;
-            } catch (e) { console.error("Fetch Error:", e); }
+    try {
+        // 🛡️ Cookie se posílá automaticky, identitu uživatele backend pozná sám
+        const res = await fetch(`/api/update_price`);
+        const data = await res.json();
+        
+        // NOTIFICATIONS
+        if (data.history && data.history.length > 0) {
+            checkNotifications(data.history[0]);
+        } else if (data.latest) {
+            checkNotifications(data.latest);
         }
+
+        // --- MAIN CARD (TOP CATCH) ---
+        if (data.latest) {
+            const priceEl = document.getElementById('top-catch-price');
+            const opinionEl = document.getElementById('top-catch-opinion');
+            const titleEl = document.getElementById('top-catch-title');
+            const storeEl = document.getElementById('top-catch-store');
+
+            let cleanPrice = data.latest.price || "---";
+            if(cleanPrice.includes(":")) cleanPrice = cleanPrice.split(":")[1].trim();
+
+            if(priceEl) priceEl.innerText = cleanPrice;
+            if(opinionEl) opinionEl.innerText = `"${data.latest.opinion || "Scanning market..."}"`;
+            if(titleEl) titleEl.innerText = data.latest.title || "Latest Catch";
+            if(storeEl) storeEl.innerText = data.latest.store || "WEB";
+            
+            // 🛡️ UPDATE CHART VIA MARKET.JS
+            if (data.history && data.history.length > 0) {
+                const activeTitle = data.latest.title || "Unknown Product";
+                const keywords = activeTitle.split(' ').slice(0, 2).join(' ').toLowerCase();
+                const allDeals = [data.latest, ...data.history];
+                
+                const relevantDeals = allDeals.filter(d => d.title && d.title.toLowerCase().includes(keywords));
+
+                const chartPrices = [];
+                const chartLabels = [];
+
+                relevantDeals.forEach(d => {
+                    const p = parseFloat(String(d.price).replace(/[^0-9.]/g, ''));
+                    if (!isNaN(p)) {
+                        chartPrices.push(p);
+                        const date = new Date(d.timestamp);
+                        const day = date.toLocaleDateString('en-US', { weekday: 'short' });
+                        const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        chartLabels.push(`${day} ${time}`);
+                    }
+                });
+
+                if (chartPrices.length > 0) {
+                    const chartTitle = activeTitle.split(' ').slice(0, 6).join(' ');
+                    MarketUI.updateChart(chartPrices.reverse(), chartLabels.reverse(), chartTitle);
+                }
+            }
+        }
+
+        // --- LIST UPDATE ---
+        const list = document.getElementById('history-list');
+        const savedIds = (data.saved || []).map(s => String(s.id));
+
+        if (list && data.history && Array.isArray(data.history)) {
+            const limitedHistory = data.history.slice(0, 5); 
+            let htmlContent = '';
+            limitedHistory.forEach((deal, index) => {
+                let timeText = "Now";
+                if (deal.timestamp) {
+                    const diffMs = Date.now() - deal.timestamp;
+                    const minutes = Math.floor(diffMs / 60000);
+                    timeText = minutes < 1 ? "< 1 min" : `${minutes} min`;
+                }
+                const score = deal.score || 50; 
+                let scoreColor = score >= 80 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]' : (score < 45 ? 'bg-red-600' : 'bg-blue-500');
+                let listPrice = deal.price || "---";
+                if(listPrice.includes(":")) listPrice = listPrice.split(":")[1].trim();
+                
+                const dealDataEscaped = encodeURIComponent(JSON.stringify(deal))
+                    .replace(/'/g, "%27")
+                    .replace(/\(/g, "%28")
+                    .replace(/\)/g, "%29"); 
+                
+                const isSaved = savedIds.includes(String(deal.id));
+                
+                let saveButtonHtml = isSaved 
+                    ? `<button class="text-green-500 border border-green-500/50 bg-green-500/10 p-2 rounded-lg z-10 cursor-default"><span class="font-bold text-xs">✓</span></button>`
+                    : `<button onclick="saveScanFromIndex(event, '${dealDataEscaped}', this)" class="bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg transition-all z-10"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg></button>`;
+
+                htmlContent += `
+                    <div onclick="MarketUI.openDetail('${dealDataEscaped}')" class="glass-panel p-5 rounded-xl transition-all border border-white/5 hover:border-blue-500/30 new-item cursor-pointer group relative" style="opacity: ${1 - index*0.15}">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-blue-400 font-bold uppercase tracking-widest">${deal.store || 'WEB'}</span>
+                                <h3 class="text-white font-bold text-sm leading-tight mt-1 group-hover:text-blue-400 transition-colors line-clamp-2 pr-8">${deal.title || 'Product'}</h3>
+                            </div>
+                            <div class="text-[9px] font-mono text-gray-600 pt-1 whitespace-nowrap">${timeText}</div>
+                        </div>
+                        <div class="flex justify-between items-end mt-4">
+                            <div class="flex flex-col">
+                                <span class="text-2xl font-black text-white tracking-tighter">${listPrice}</span>
+                                <p class="text-[10px] text-gray-500 italic mt-1 max-w-[150px] truncate">"${deal.opinion}"</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                ${saveButtonHtml}
+                                <span class="text-blue-500 text-xs font-bold uppercase tracking-widest bg-blue-500/10 px-2 py-2 rounded border border-blue-500/20 group-hover:bg-blue-500 group-hover:text-white transition-all">Detail ↗</span>
+                            </div>
+                        </div>
+                        <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-3">
+                            <div class="h-full ${scoreColor} transition-all duration-1000" style="width: ${score}%"></div>
+                        </div>
+                    </div>`;
+            });
+            list.innerHTML = htmlContent;
+        }
+
+        // 🛡️ KLÍČOVÝ KROK: Vrátíme data, aby se mohl spustit Pusher
+        return data; 
+
+    } catch (e) { 
+        console.error("Fetch Error:", e); 
+        return null;
+    }
+}
 
 async function saveScanFromIndex(event, dealDataEscaped, btn) {
             event.stopPropagation(); 
