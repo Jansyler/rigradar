@@ -432,26 +432,21 @@ async function requestScan() {
             }
         }
 
-        // --- FETCH RESULTS & CHART ---
-        let priceChartInstance = null;
-        function initChart() {
-            const ctx = document.getElementById('priceChart').getContext('2d');
-            const gradient = ctx.createLinearGradient(0, 0, 0, 150);
-            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)'); gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
-            priceChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: 'Price', data: [], borderColor: '#3b82f6', backgroundColor: gradient, fill: true, tension: 0.3 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { color: '#666' }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
-            });
+      // --- DATA POLLING & UI UPDATE ---
+        let pollingInterval = null;
+        let currentIntervalTime = 60000; 
+
+        function startPolling(ms) {
+            if (pollingInterval) clearInterval(pollingInterval);
+            currentIntervalTime = ms;
+            pollingInterval = setInterval(fetchLatestDeal, ms);
         }
 
         async function fetchLatestDeal() {
             if (document.hidden) return; 
 
             try {
-                const userEmail = localStorage.getItem('rr_user_email');
-                if(!userEmail) return;
-                const res = await fetch(`/api/update_price?user=${userEmail}`);
+                const res = await fetch(`/api/update_price`); // 🛡️ Cookie handles auth
                 const data = await res.json();
                 
                 // --- HEARTBEAT KONTROLA ---
@@ -459,10 +454,8 @@ async function requestScan() {
                 const text = document.getElementById('system-status-text');
                 
                 if (dot && text && data.systemStatus) {
-                    const lastSeen = data.systemStatus.timestamp;
-                    const diff = (Date.now() - lastSeen) / 1000;
-
-                    if (diff > 120) { // Pokud se radar neozval víc než 2 minuty
+                    const diff = (Date.now() - data.systemStatus.timestamp) / 1000;
+                    if (diff > 120) { 
                         dot.className = "w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]";
                         text.innerText = "System Offline";
                         text.className = "text-[10px] uppercase tracking-widest text-red-500 font-bold";
@@ -474,10 +467,7 @@ async function requestScan() {
                 }
 
                 if (data.history && Array.isArray(data.history) && data.history.length > 0) {
-                    // 🐢 ZPOMALENÍ POLLINGU (Data už máme)
-                    if (currentIntervalTime === 3000) {
-                        startPolling(60000);
-                    }
+                    if (currentIntervalTime === 3000) startPolling(60000); // Zpomalení
 
                     const list = document.getElementById('history-list');
                     let htmlContent = '';
@@ -493,7 +483,7 @@ async function requestScan() {
 
                         const dealEscaped = encodeURIComponent(JSON.stringify(deal)).replace(/'/g, "%27");
                         htmlContent += `
-                            <div onclick="openDetail('${dealEscaped}')" class="glass-panel p-4 rounded-xl cursor-pointer hover:border-blue-500/30 transition-all border border-white/5">
+                            <div onclick="MarketUI.openDetail('${dealEscaped}')" class="glass-panel p-4 rounded-xl cursor-pointer hover:border-blue-500/30 transition-all border border-white/5">
                                 <div class="flex justify-between items-center mb-1">
                                     <span class="text-[10px] text-blue-400 font-bold uppercase">${deal.store || 'WEB'}</span>
                                     <span class="text-sm font-black text-white">${listPrice}</span>
@@ -501,43 +491,23 @@ async function requestScan() {
                                 <h3 class="text-gray-300 text-xs truncate">${deal.title || 'Product'}</h3>
                             </div>`;
                     });
+                    
                     if (htmlContent) list.innerHTML = htmlContent;
 
-                    if (chartPrices.length > 0 && priceChartInstance) {
-                        priceChartInstance.data.datasets[0].data = chartPrices.reverse();
-                        priceChartInstance.data.labels = chartLabels;
-                        priceChartInstance.update();
-                        document.getElementById('chart-title').innerText = data.history[0].title.split(' ').slice(0, 4).join(' ');
+                    // 🛡️ Použití sdíleného grafu
+                    if (chartPrices.length > 0) {
+                        const chartTitle = data.history[0].title.split(' ').slice(0, 4).join(' ');
+                        MarketUI.updateChart(chartPrices.reverse(), chartLabels, chartTitle);
                     }
                 }
-            } catch (e) {}
+            } catch (e) { console.error("Fetch error:", e); }
         }
 
-        function openDetail(dealDataEscaped) {
-            const deal = JSON.parse(decodeURIComponent(dealDataEscaped));
-            const modal = document.getElementById('detail-modal');
-            document.getElementById('modal-title').innerText = deal.title || "Detail";
-            document.getElementById('modal-price').innerText = deal.price || "---";
-            document.getElementById('modal-opinion').innerText = deal.opinion || "No analysis.";
-            document.getElementById('modal-badge').innerText = (deal.store || "WEB").toUpperCase();
-            
-            const link = document.getElementById('modal-link');
-            const productUrl = deal.url || deal.link || "#";
-            if (productUrl !== "#") { link.href = productUrl; link.classList.remove('hidden'); } else { link.classList.add('hidden'); }
-            
-            modal.classList.remove('hidden');
-            setTimeout(() => modal.classList.remove('opacity-0'), 10);
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('detail-modal');
-            modal.classList.add('opacity-0');
-            setTimeout(() => modal.classList.add('hidden'), 300);
-        }
-
-document.addEventListener('DOMContentLoaded', async () => {
+        // 🛡️ Modaly nyní ovládá market.js (openDetail a closeModal jsme smazali)
+        
+        document.addEventListener('DOMContentLoaded', async () => {
             loadLayout();
-            initChart();
+            MarketUI.initChart('priceChart'); // 🛡️ Zavolání globální funkce
             await fetchLatestDeal();
     
             startPolling(60000); 
@@ -549,6 +519,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 startNewChat();
             }
         });
+    
     </script>
 </body>
 </html>
