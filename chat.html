@@ -357,19 +357,6 @@
             }
         }
 
-        // ==========================================
-        // 📡 DYNAMICKÝ POLLING LOGIC
-        // ==========================================
-        let pollingInterval = null;
-        let currentIntervalTime = 60000; 
-
-        function startPolling(ms) {
-            if (pollingInterval) clearInterval(pollingInterval);
-            currentIntervalTime = ms;
-            pollingInterval = setInterval(fetchLatestDeal, ms);
-            console.log(`📡 Radar Polling: ${ms / 1000}s`);
-        }
-
         // --- RADAR LOGIC ---
         async function requestScan() {
             const query = document.getElementById('scanQuery').value;
@@ -382,9 +369,6 @@
             const container = document.getElementById('scanner-container');
 
             if(!query) { statusEl.innerText = "⚠️ Enter product name"; return; }
-            
-            startPolling(3000); 
-            setTimeout(() => { if (currentIntervalTime === 3000) startPolling(60000); }, 120000); 
             
             btn.disabled = true;
             if (container) container.classList.add('scanning'); 
@@ -417,13 +401,12 @@
                 } else {
                     statusEl.innerText = `⚠️ ${data.error || 'Limit reached or Error'}`;
                     statusEl.className = "text-center text-xs font-mono h-4 text-red-400";
-                    startPolling(60000); 
                 }
             } catch (e) { 
                 clearInterval(moodInterval);
                 statusEl.innerText = "❌ Connection error"; 
                 statusEl.className = "text-center text-xs font-mono h-4 text-red-500";
-                startPolling(60000);
+
             } finally { 
                 setTimeout(() => { 
                     btn.disabled = false; 
@@ -433,7 +416,7 @@
             }
         }
 
-      // --- DATA POLLING & UI UPDATE ---
+
 
         async function fetchLatestDeal() {
             if (document.hidden) return; 
@@ -460,7 +443,6 @@
                 }
 
                 if (data.history && Array.isArray(data.history) && data.history.length > 0) {
-                    if (currentIntervalTime === 3000) startPolling(60000); 
 
                     const list = document.getElementById('history-list');
                     let htmlContent = '';
@@ -496,32 +478,31 @@
         }
 
 document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // 1. Načteme layout a počkáme na něj
-                await loadLayout();
-                
-                // 2. Inicializace trhu
-                if (window.MarketUI) {
-                    MarketUI.initChart('priceChart');
-                }
-                
-                // 3. První načtení dat (pokud selže, nevadí, polling to zkusí znovu)
-                fetchLatestDeal().catch(err => console.warn("Initial fetch failed, starting polling..."));
+    try {
+        await loadLayout();
         
-                // 4. Start pollingu
-                startPolling(60000); 
-                
-                // 5. Načtení historie chatu
-                await loadSidebar(); 
-                
-                const chatBox = document.getElementById('chat-box');
-                if (chatBox && chatBox.innerHTML.trim() === "") {
-                    startNewChat();
-                }
-            } catch (err) {
-                console.error("Critical Init Error:", err);
-            }
-        });
+        if (window.MarketUI) {
+            MarketUI.initChart('priceChart');
+        }
+
+        // Načteme data a z nich získáme i klíč z Vercelu
+        const res = await fetchLatestDeal(); 
+        
+        // Pokud API vrátilo klíč, zapneme Pusher přes market.js
+        if (res && res.pusherKey) {
+            MarketUI.initRealtime(res.pusherKey);
+        }
+
+        await loadSidebar();
+        
+        const chatBox = document.getElementById('chat-box');
+        if (chatBox && chatBox.innerHTML.trim() === "") {
+            startNewChat();
+        }
+    } catch (err) {
+        console.error("Critical Init Error:", err);
+    }
+});
     </script>
 </body>
 </html>
