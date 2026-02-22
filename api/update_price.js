@@ -81,6 +81,7 @@ export default async function handler(req, res) {
 
     const publicHistory = parseItems(results[1]);
     const userHistory = results[3] ? parseItems(results[3]) : [];
+    const savedItems = results[4] ? parseItems(results[4]) : [];
 
     // Sloučení a seřazení historie
     let combinedHistory = [...userHistory, ...publicHistory];
